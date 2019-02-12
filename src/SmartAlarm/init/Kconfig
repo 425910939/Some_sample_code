@@ -1,0 +1,26 @@
+menu "Little-P Product Config"
+
+config ENABLE_SHELL_SERVICE
+    bool "Enable shell service or not"
+    default n
+
+config USE_ESP32_LYRAT_BOARD
+    bool "Bsp support Lyrat board or little-P board"
+    default n
+
+config USE_OFFLINE_LOG
+    bool "Enable offline log"
+    default y 
+
+config ESP_TOUCH_TO_CONNECT_WIFI
+    bool "Enable use esp-touch to config wifi"
+    default y
+	
+config SERVER_ADDRESS_FOR_TEST
+    bool "Switch server address for test-version or release-version"
+    default n
+	
+config ENABLE_POWER_MANAGER
+    bool "Enable power manager or not"
+    default y
+endmenu

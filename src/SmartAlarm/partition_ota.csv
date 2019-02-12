@@ -1,0 +1,12 @@
+# Name,   Type, SubType, Offset,  Size
+nvs,        data,   nvs,    0x9000,     0x4000
+otadata,    data,   ota,    0xd000,     0x2000
+phy_init,   data,   phy,    0xf000,     0x1000
+ble_data,   0x40,   1,      0x21000,    12K
+server_cert,0x40,   2,      0x24000,    8K
+server_key, 0x40,   3,      0x26000,    8K
+server_ca,  0x40,   4,      0x28000,    8K
+fatfs,      data,   fat,    0x70000,    0x90000
+#factory,    0,      0,      0x100000,   2M
+ota_0,      app,    ota_0,  ,    0x300000
+ota_1,      app,    ota_1,  ,    0x300000

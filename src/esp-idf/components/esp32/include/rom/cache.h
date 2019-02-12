@@ -83,9 +83,6 @@ static inline unsigned int IRAM_ATTR cache_flash_mmu_set(int cpu_no, int pid, un
   * @brief Set Ext-SRAM-Cache mmu mapping.
   *        Please do not call this function in your SDK application.
   *
-  * Note that this code lives in IRAM and has a bugfix in respect to the ROM version
-  * of this function (which erroneously refused a vaddr > 2MiB
-  *
   * @param  int cpu_no : CPU number, 0 for PRO cpu, 1 for APP cpu.
   *
   * @param  int pod : process identifier. Range 0~7.
@@ -109,7 +106,18 @@ static inline unsigned int IRAM_ATTR cache_flash_mmu_set(int cpu_no, int pid, un
   *                   4 : mmu table to be written is out of range
   *                   5 : vaddr is out of range
   */
-unsigned int IRAM_ATTR cache_sram_mmu_set(int cpu_no, int pid, unsigned int vaddr, unsigned int paddr, int psize, int num);
+static inline unsigned int IRAM_ATTR cache_sram_mmu_set(int cpu_no, int pid, unsigned int vaddr, unsigned int paddr, int psize, int num)
+{
+    extern unsigned int cache_sram_mmu_set_rom(int cpu_no, int pid, unsigned int vaddr, unsigned int paddr, int psize, int num);
+
+    unsigned int ret;
+
+    DPORT_STALL_OTHER_CPU_START();
+    ret = cache_sram_mmu_set_rom(cpu_no, pid, vaddr, paddr, psize, num);
+    DPORT_STALL_OTHER_CPU_END();
+
+    return ret;
+}
 
 /**
   * @brief Initialise cache access for the cpu.

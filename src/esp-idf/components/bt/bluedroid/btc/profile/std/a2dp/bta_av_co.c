@@ -156,7 +156,11 @@ typedef struct {
 } tBTA_AV_CO_CB;
 
 /* Control block instance */
+#if CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
+static tBTA_AV_CO_CB EXT_RAM_ATTR bta_av_co_cb;
+#else
 static tBTA_AV_CO_CB bta_av_co_cb;
+#endif
 
 static BOOLEAN bta_av_co_audio_codec_build_config(const UINT8 *p_codec_caps, UINT8 *p_codec_cfg);
 static void bta_av_co_audio_peer_reset_config(tBTA_AV_CO_PEER *p_peer);

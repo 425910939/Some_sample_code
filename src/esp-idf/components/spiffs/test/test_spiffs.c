@@ -291,8 +291,7 @@ void test_spiffs_readdir_many_files(const char* dir_prefix)
             if (!de) {
                 break;
             }
-            int len = snprintf(file_name, sizeof(file_name), "%s/%s", dir_prefix, de->d_name);
-            assert(len < sizeof(file_name));
+            snprintf(file_name, sizeof(file_name), "%s/%s", dir_prefix, de->d_name);
             unlink(file_name);
         }
     }

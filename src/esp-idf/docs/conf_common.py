@@ -14,8 +14,6 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-from __future__ import print_function
-from __future__ import unicode_literals
 import sys, os
 import re
 import subprocess
@@ -27,24 +25,10 @@ import shlex
 
 from local_util import run_cmd_get_output, copy_if_modified
 
-# build_docs on the CI server sometimes fails under Python3. This is a workaround:
-sys.setrecursionlimit(3500)
-
-try:
+builddir = '_build'
+builddir = builddir
+if 'BUILDDIR' in os.environ:
     builddir = os.environ['BUILDDIR']
-except KeyError:
-    builddir = '_build'
-
-# Fill in a default IDF_PATH if it's missing (ie when Read The Docs is building the docs)
-try:
-    idf_path = os.environ['IDF_PATH']
-except KeyError:
-    idf_path = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
-
-def call_with_python(cmd):
-    # using sys.executable ensures that the scripts are called with the same Python interpreter
-    if os.system('{} {}'.format(sys.executable, cmd)) != 0:
-        raise RuntimeError('{} failed'.format(cmd))
 
 # Call Doxygen to get XML files from the header files
 print("Calling Doxygen to generate latest XML files")
@@ -56,28 +40,22 @@ if os.system("doxygen ../Doxyfile") != 0:
 copy_if_modified('xml/', 'xml_in/')
 
 # Generate 'api_name.inc' files using the XML files by Doxygen
-call_with_python('../gen-dxd.py')
+if os.system('python ../gen-dxd.py') != 0:
+    raise RuntimeError('gen-dxd.py failed')
 
 # Generate 'kconfig.inc' file from components' Kconfig files
 print("Generating kconfig.inc from kconfig contents")
 kconfig_inc_path = '{}/inc/kconfig.inc'.format(builddir)
 temp_sdkconfig_path = '{}/sdkconfig.tmp'.format(builddir)
-# note: trimming "examples" dir from KConfig/KConfig.projbuild as MQTT submodule
-# has its own examples in the submodule.
-kconfigs = subprocess.check_output(["find", "../../components",
-                                    "-name", "examples", "-prune",
-                                    "-o", "-name", "Kconfig", "-print"]).decode()
-kconfig_projbuilds = subprocess.check_output(["find", "../../components",
-                                              "-name", "examples", "-prune",
-                                              "-o", "-name", "Kconfig.projbuild", "-print"]).decode()
-confgen_args = [sys.executable,
+kconfigs = subprocess.check_output(["find", "../../components", "-name", "Kconfig"]).decode()
+kconfig_projbuilds = subprocess.check_output(["find", "../../components", "-name", "Kconfig.projbuild"]).decode()
+confgen_args = ["python",
                 "../../tools/kconfig_new/confgen.py",
                 "--kconfig", "../../Kconfig",
                 "--config", temp_sdkconfig_path,
                 "--create-config-if-missing",
                 "--env", "COMPONENT_KCONFIGS={}".format(kconfigs),
                 "--env", "COMPONENT_KCONFIGS_PROJBUILD={}".format(kconfig_projbuilds),
-                "--env", "IDF_PATH={}".format(idf_path),
                 "--output", "docs", kconfig_inc_path + '.in'
 ]
 subprocess.check_call(confgen_args)
@@ -85,7 +63,8 @@ copy_if_modified(kconfig_inc_path + '.in', kconfig_inc_path)
 
 # Generate 'esp_err_defs.inc' file with ESP_ERR_ error code definitions
 esp_err_inc_path = '{}/inc/esp_err_defs.inc'.format(builddir)
-call_with_python('../../tools/gen_esp_err_to_name.py --rst_output ' + esp_err_inc_path + '.in')
+if os.system('python ../../tools/gen_esp_err_to_name.py --rst_output ' + esp_err_inc_path + '.in') != 0:
+    raise RuntimeError('gen_esp_err_to_name.py failed')
 copy_if_modified(esp_err_inc_path + '.in', esp_err_inc_path)
 
 # Generate version-related includes
@@ -94,15 +73,10 @@ copy_if_modified(esp_err_inc_path + '.in', esp_err_inc_path)
 def generate_version_specific_includes(app):
     print("Generating version-specific includes...")
     version_tmpdir = '{}/version_inc'.format(builddir)
-    call_with_python('../gen-version-specific-includes.py {} {}'.format(app.config.language, version_tmpdir))
+    if os.system('python ../gen-version-specific-includes.py {} {}'.format(app.config.language, version_tmpdir)):
+        raise RuntimeError('gen-version-specific-includes.py failed')
     copy_if_modified(version_tmpdir, '{}/inc'.format(builddir))
 
-# Generate toolchain download links
-print("Generating toolchain download links")
-base_url = 'https://dl.espressif.com/dl/'
-toolchain_tmpdir = '{}/toolchain_inc'.format(builddir)
-call_with_python('../gen-toolchain-links.py ../../tools/toolchain_versions.mk {} {}'.format(base_url, toolchain_tmpdir))
-copy_if_modified(toolchain_tmpdir, '{}/inc'.format(builddir))
 
 # http://stackoverflow.com/questions/12772927/specifying-an-online-image-in-sphinx-restructuredtext-format
 # 
@@ -133,9 +107,6 @@ actdiag_fontpath = '../_static/DejaVuSans.ttf'
 nwdiag_fontpath = '../_static/DejaVuSans.ttf'
 rackdiag_fontpath = '../_static/DejaVuSans.ttf'
 packetdiag_fontpath = '../_static/DejaVuSans.ttf'
-
-# Enabling this fixes cropping of blockdiag edge labels
-seqdiag_antialias = True
 
 # Breathe extension variables
 
@@ -218,7 +189,7 @@ pygments_style = 'sphinx'
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'default'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -237,7 +208,7 @@ html_theme = 'sphinx_rtd_theme'
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = "../_static/espressif-logo.svg"
+#html_logo = None
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -376,6 +347,19 @@ texinfo_documents = [
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 #texinfo_no_detailmenu = False
+
+# -- Use sphinx_rtd_theme for local builds --------------------------------
+# ref. https://github.com/snide/sphinx_rtd_theme#using-this-theme-locally-then-building-on-read-the-docs
+#
+# on_rtd is whether we are on readthedocs.org
+on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
+
+if not on_rtd:  # only import and set the theme if we're building docs locally
+    import sphinx_rtd_theme
+    html_theme = 'sphinx_rtd_theme'
+    html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+
+# otherwise, readthedocs.org uses their theme by default, so no need to specify it
 
 # Override RTD CSS theme to introduce the theme corrections
 # https://github.com/rtfd/sphinx_rtd_theme/pull/432

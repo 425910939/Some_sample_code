@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from __future__ import print_function
 import os
 import sys
 import threading
@@ -7,7 +6,6 @@ import time
 import json
 import argparse
 import shutil
-import tempfile
 
 import pexpect
 
@@ -47,10 +45,10 @@ def main():
     parser.add_argument('--logfile', type=argparse.FileType('w'), help='Optional session log of the interactions with confserver.py')
     args = parser.parse_args()
 
+    # set up temporary file to use as sdkconfig copy
+    temp_sdkconfig_path = os.tmpnam()
     try:
-        # set up temporary file to use as sdkconfig copy
-        with tempfile.NamedTemporaryFile(mode="w", delete=False) as temp_sdkconfig:
-            temp_sdkconfig_path = os.path.join(tempfile.gettempdir(), temp_sdkconfig.name)
+        with open(temp_sdkconfig_path, "w") as temp_sdkconfig:
             with open("sdkconfig") as orig:
                 temp_sdkconfig.write(orig.read())
 
@@ -63,7 +61,7 @@ def main():
         def expect_json():
             # run p.expect() to expect a json object back, and return it as parsed JSON
             p.expect("{.+}\r\n")
-            return json.loads(p.match.group(0).strip().decode())
+            return json.loads(p.match.group(0).strip())
 
         p.expect("Server running.+\r\n")
         initial = expect_json()

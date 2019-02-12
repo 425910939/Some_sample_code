@@ -20,6 +20,7 @@
 #include "soc/soc_memory_layout.h"
 #include "esp_heap_caps.h"
 #include "sdkconfig.h"
+#include "esp_bt.h"
 
 /* Memory layout for ESP32 SoC */
 
@@ -80,7 +81,8 @@ const soc_memory_region_t soc_memory_regions[] = {
 #endif
     { 0x3FFAE000, 0x2000, 0, 0}, //pool 16 <- used for rom code
     { 0x3FFB0000, 0x8000, 0, 0}, //pool 15 <- if BT is enabled, used as BT HW shared memory
-    { 0x3FFB8000, 0x8000, 0, 0}, //pool 14 <- if BT is enabled, used data memory for BT ROM functions.
+    { 0x3FFB8000, 0x5B28, 0, 0}, //pool 14 <- if BT is enabled, used data memory for BT ROM functions.
+    { 0x3FFBDB28, 0x24D8, 0, 0}, //pool 14 <- if BT is enabled, used data memory for BT ROM functions.
     { 0x3FFC0000, 0x2000, 0, 0}, //pool 10-13, mmu page 0
     { 0x3FFC2000, 0x2000, 0, 0}, //pool 10-13, mmu page 1
     { 0x3FFC4000, 0x2000, 0, 0}, //pool 10-13, mmu page 2
@@ -130,10 +132,8 @@ const size_t soc_memory_region_count = sizeof(soc_memory_regions)/sizeof(soc_mem
 
    These are removed from the soc_memory_regions array when heaps are created.
  */
-SOC_RESERVE_MEMORY_REGION(SOC_CACHE_PRO_LOW, SOC_CACHE_PRO_HIGH, cpu0_cache);
-#ifndef CONFIG_FREERTOS_UNICORE
-SOC_RESERVE_MEMORY_REGION(SOC_CACHE_APP_LOW, SOC_CACHE_APP_HIGH, cpu1_cache);
-#endif
+SOC_RESERVE_MEMORY_REGION(0x40070000, 0x40078000, cpu0_cache);
+SOC_RESERVE_MEMORY_REGION(0x40078000, 0x40080000, cpu1_cache);
 
     /* Warning: The ROM stack is located in the 0x3ffe0000 area. We do not specifically disable that area here because
        after the scheduler has started, the ROM stack is not used anymore by anything. We handle it instead by not allowing
@@ -152,17 +152,15 @@ SOC_RESERVE_MEMORY_REGION(SOC_CACHE_APP_LOW, SOC_CACHE_APP_HIGH, cpu1_cache);
     */
 
 SOC_RESERVE_MEMORY_REGION(0x3ffe0000, 0x3ffe0440, rom_pro_data); //Reserve ROM PRO data region
-#ifndef CONFIG_FREERTOS_UNICORE
-SOC_RESERVE_MEMORY_REGION(0x3ffe3f20, 0x3ffe4350, rom_app_data); //Reserve ROM APP data region
-#endif
+SOC_RESERVE_MEMORY_REGION(0x3ffe4000, 0x3ffe4350, rom_app_data); //Reserve ROM APP data region
 
 SOC_RESERVE_MEMORY_REGION(0x3ffae000, 0x3ffae6e0, rom_data);
 
 #if CONFIG_MEMMAP_TRACEMEM
 #if CONFIG_MEMMAP_TRACEMEM_TWOBANKS
-SOC_RESERVE_MEMORY_REGION(0x3fff8000, 0x40000000, trace_mem); //Reserve trace mem region, 32K for both cpu
+SOC_RESERVE_MEMORY_REGION(0x3fff8000, 0x40000000, trace_mem); //Reserve trace mem region
 #else
-SOC_RESERVE_MEMORY_REGION(0x3fffc000, 0x40000000, trace_mem); //Reserve trace mem region, 16K (upper-half) for pro cpu
+SOC_RESERVE_MEMORY_REGION(0x3fff8000, 0x3fffc000, trace_mem); //Reserve trace mem region
 #endif
 #endif
 

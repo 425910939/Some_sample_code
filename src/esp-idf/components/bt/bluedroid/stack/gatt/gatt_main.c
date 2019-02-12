@@ -1022,36 +1022,35 @@ void gatt_add_a_bonded_dev_for_srv_chg (BD_ADDR bda)
 **
 ** Function         gatt_send_srv_chg_ind
 **
-** Description      This function is called to send a service changed indication to
+** Description      This function is called to send a service chnaged indication to
 **                  the specified bd address
 **
-** Returns          GATT_SUCCESS if sucessfully sent; otherwise error code
+** Returns          void
 **
 *******************************************************************************/
 #if (GATTS_INCLUDED == TRUE)
-tGATT_STATUS gatt_send_srv_chg_ind (BD_ADDR peer_bda)
+void gatt_send_srv_chg_ind (BD_ADDR peer_bda)
 {
     UINT8   handle_range[GATT_SIZE_OF_SRV_CHG_HNDL_RANGE];
     UINT8   *p = handle_range;
     UINT16  conn_id;
-    tGATT_STATUS  status = GATT_ERROR;
+
     GATT_TRACE_DEBUG("gatt_send_srv_chg_ind");
 
     if (gatt_cb.handle_of_h_r) {
         if ((conn_id = gatt_profile_find_conn_id_by_bd_addr(peer_bda)) != GATT_INVALID_CONN_ID) {
             UINT16_TO_STREAM (p, 1);
             UINT16_TO_STREAM (p, 0xFFFF);
-            status = GATTS_HandleValueIndication (conn_id,
+            GATTS_HandleValueIndication (conn_id,
                                          gatt_cb.handle_of_h_r,
                                          GATT_SIZE_OF_SRV_CHG_HNDL_RANGE,
                                          handle_range);
         } else {
-            status = GATT_NOT_FOUND;
-            GATT_TRACE_ERROR("Unable to find conn_id for  %02x%02x%02x%02x%02x%02x ",
-                             peer_bda[0], peer_bda[1],  peer_bda[2], peer_bda[3], peer_bda[4], peer_bda[5]);
+            GATT_TRACE_ERROR("Unable to find conn_id for  %08x%04x ",
+                             (peer_bda[0] << 24) + (peer_bda[1] << 16) + (peer_bda[2] << 8) + peer_bda[3],
+                             (peer_bda[4] << 8) + peer_bda[5] );
         }
     }
-    return status;
 }
 
 
@@ -1059,7 +1058,7 @@ tGATT_STATUS gatt_send_srv_chg_ind (BD_ADDR peer_bda)
 **
 ** Function         gatt_chk_srv_chg
 **
-** Description      Check sending service changed Indication is required or not
+** Description      Check sending service chnaged Indication is required or not
 **                  if required then send the Indication
 **
 ** Returns          void
@@ -1143,7 +1142,7 @@ void gatt_proc_srv_chg (void)
         gatt_set_srv_chg();
         start_idx = 0;
         while (gatt_find_the_connected_bda(start_idx, bda, &found_idx, &transport)) {
-            p_tcb = &gatt_cb.tcb[found_idx];
+            p_tcb = &gatt_cb.tcb[found_idx];;
             srv_chg_ind_pending  = gatt_is_srv_chg_ind_pending(p_tcb);
 
             if (!srv_chg_ind_pending) {

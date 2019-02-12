@@ -149,7 +149,6 @@ static IoT_Error_t _aws_iot_mqtt_internal_unsubscribe(AWS_IoT_Client *pClient, c
 		if(pClient->clientData.messageHandlers[i].topicName != NULL &&
 		   (strcmp(pClient->clientData.messageHandlers[i].topicName, pTopicFilter) == 0)) {
 			subscriptionExists = true;
-            break;
 		}
 	}
 

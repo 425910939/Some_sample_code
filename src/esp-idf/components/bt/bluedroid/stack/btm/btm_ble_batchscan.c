@@ -29,10 +29,13 @@
 #include "stack/hcimsgs.h"
 
 #if (BLE_INCLUDED == TRUE)
-
+#if CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
+tBTM_BLE_BATCH_SCAN_CB EXT_RAM_ATTR ble_batchscan_cb;
+tBTM_BLE_ADV_TRACK_CB EXT_RAM_ATTR ble_advtrack_cb;
+#else
 tBTM_BLE_BATCH_SCAN_CB ble_batchscan_cb;
 tBTM_BLE_ADV_TRACK_CB ble_advtrack_cb;
-
+#endif
 
 /* length of each batch scan command */
 #define BTM_BLE_BATCH_SCAN_STORAGE_CFG_LEN      4

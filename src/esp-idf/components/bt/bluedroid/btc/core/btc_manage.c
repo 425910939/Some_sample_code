@@ -19,8 +19,11 @@
 #include "esp_bt_defs.h"
 #include "esp_gatt_defs.h"
 
+#if CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
+static void * EXT_RAM_ATTR btc_profile_cb_tab[BTC_PID_NUM] = {};
+#else
 static void *btc_profile_cb_tab[BTC_PID_NUM] = {};
-
+#endif
 void esp_profile_cb_reset(void)
 {
     int i;

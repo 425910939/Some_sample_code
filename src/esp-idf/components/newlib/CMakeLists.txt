@@ -1,11 +1,8 @@
 set(COMPONENT_SRCS "locks.c"
-                   "pthread.c"
-                   "random.c"
                    "reent_init.c"
                    "select.c"
                    "syscall_table.c"
                    "syscalls.c"
-                   "termios.c"
                    "time.c")
 set(COMPONENT_ADD_INCLUDEDIRS platform_include include)
 

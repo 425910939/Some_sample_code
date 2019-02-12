@@ -7,6 +7,7 @@ set(COMPONENT_SRCS "FreeRTOS-openocd.c"
                    "port.c"
                    "portasm.S"
                    "queue.c"
+                   "ringbuf.c"
                    "tasks.c"
                    "timers.c"
                    "xtensa_context.S"
@@ -30,6 +31,7 @@ set_source_files_properties(
     event_groups.c
     timers.c
     queue.c
+    ringbuf.c
     PROPERTIES COMPILE_DEFINITIONS
     _ESP_FREERTOS_INTERNAL
     )

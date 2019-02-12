@@ -52,7 +52,6 @@
 #define BTA_SDP_INCLUDED            TRUE
 #define BTA_DM_PM_INCLUDED          TRUE
 #define SDP_INCLUDED                TRUE
-#define BT_SSP_INCLUDED             TRUE
 
 #if CONFIG_A2DP_ENABLE
 #define BTA_AR_INCLUDED             TRUE
@@ -318,12 +317,6 @@
 #define SCAN_QUEUE_CONGEST_CHECK  CONFIG_BLE_HOST_QUEUE_CONGESTION_CHECK
 #endif
 
-#ifndef CONFIG_GATTS_SEND_SERVICE_CHANGE_MODE
-#define GATTS_SEND_SERVICE_CHANGE_MODE GATTS_SEND_SERVICE_CHANGE_AUTO
-#else
-#define GATTS_SEND_SERVICE_CHANGE_MODE CONFIG_GATTS_SEND_SERVICE_CHANGE_MODE
-#endif
-
 /* This feature is used to eanble interleaved scan*/
 #ifndef BTA_HOST_INTERLEAVE_SEARCH
 #define BTA_HOST_INTERLEAVE_SEARCH FALSE//FALSE
@@ -361,9 +354,6 @@
 // idle state for FTS, OPS connections
 #ifndef BTA_FTS_OPS_IDLE_TO_SNIFF_DELAY_MS
 #define BTA_FTS_OPS_IDLE_TO_SNIFF_DELAY_MS 7000
-#endif
-#ifndef BTA_FTC_OPS_IDLE_TO_SNIFF_DELAY_MS
-#define BTA_FTC_OPS_IDLE_TO_SNIFF_DELAY_MS 5000
 #endif
 
 //------------------End added from bdroid_buildcfg.h---------------------
@@ -620,18 +610,9 @@
 */
 #define BTA_DM_COD_LOUDSPEAKER {0x2C, 0x04, 0x14}
 
-/*
-* {SERVICE_CLASS, MAJOR_CLASS, MINOR_CLASS}
-*
-* SERVICE_CLASS:0x00 None
-* MAJOR_CLASS:0x1f - Uncategorized: device code not specified
-* MINOR_CLASS:0x00 - None
-*/
-#define BTA_DM_COD_UNCLASSIFIED {0x00, 0x1f, 0x00}
-
 /* Default class of device */
 #ifndef BTA_DM_COD
-#define BTA_DM_COD BTA_DM_COD_UNCLASSIFIED
+#define BTA_DM_COD BTA_DM_COD_LOUDSPEAKER
 #endif
 
 /* The number of SCO links. */
@@ -1174,20 +1155,6 @@
 #define SMP_LINK_TOUT_MIN               2
 #endif
 #endif
-
-/******************************************************************************
-**
-** BT_SSP
-**
-******************************************************************************/
-#ifndef BT_SSP_INCLUDED
-#define BT_SSP_INCLUDED         FALSE
-#endif
-
-#if BT_SSP_INCLUDED == TRUE && CLASSIC_BT_INCLUDED == FALSE
-#error "Can't have SSP without CLASSIC BT"
-#endif
-
 /******************************************************************************
 **
 ** SDP

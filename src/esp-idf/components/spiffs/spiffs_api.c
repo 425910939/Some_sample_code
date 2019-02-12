@@ -19,11 +19,11 @@
 #include "esp_vfs.h"
 #include "spiffs_api.h"
 
-static const char* TAG = "SPIFFS";
+const char* TAG = "SPIFFS";
 
 void spiffs_api_lock(spiffs *fs)
 {
-    (void) xSemaphoreTake(((esp_spiffs_t *)(fs->user_data))->lock, portMAX_DELAY);
+    xSemaphoreTake(((esp_spiffs_t *)(fs->user_data))->lock, portMAX_DELAY);
 }
 
 void spiffs_api_unlock(spiffs *fs)

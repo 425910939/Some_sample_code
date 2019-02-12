@@ -1,4 +1,4 @@
-*************************************
+﻿*************************************
 Standard Setup of Toolchain for Linux
 *************************************
 :link_to_translation:`zh_CN:[中文]`
@@ -10,44 +10,35 @@ To compile with ESP-IDF you need to get the following packages:
 
 - CentOS 7::
 
-    sudo yum install gcc git wget make ncurses-devel flex bison gperf python python2-cryptography
+    sudo yum install gcc git wget make ncurses-devel flex bison gperf python pyserial
 
 - Ubuntu and Debian::
 
-    sudo apt-get install gcc git wget make libncurses-dev flex bison gperf python python-pip python-setuptools python-serial python-cryptography python-future
+    sudo apt-get install gcc git wget make libncurses-dev flex bison gperf python python-serial
 
 - Arch::
 
-    sudo pacman -S --needed gcc git make ncurses flex bison gperf python2-pyserial python2-cryptography python2-future
+    sudo pacman -S --needed gcc git make ncurses flex bison gperf python2-pyserial
 
-.. note::
-
-    Some older Linux distributions may be missing some of the Python packages listed above (or may use ``pyserial`` version 2.x which is not supported by ESP-IDF). It is possible to install these packages via ``pip`` instead - as described in section :ref:`get-started-get-packages`.
 
 Toolchain Setup
 ===============
-
-.. include:: /_build/inc/download-links.inc
 
 ESP32 toolchain for Linux is available for download from Espressif website:
 
 - for 64-bit Linux:
 
-  |download_link_linux64|
+  https://dl.espressif.com/dl/xtensa-esp32-elf-linux64-1.22.0-80-g6c4433a-5.2.0.tar.gz
 
 - for 32-bit Linux:
 
-  |download_link_linux32|
+  https://dl.espressif.com/dl/xtensa-esp32-elf-linux32-1.22.0-80-g6c4433a-5.2.0.tar.gz
 
-1.  Download this file, then extract it in ``~/esp`` directory:
+1.  Download this file, then extract it in ``~/esp`` directory::
 
-    - for 64-bit Linux:
-
-      .. include:: /_build/inc/unpack-code-linux64.inc
-
-    - for 32-bit Linux:
-
-      .. include:: /_build/inc/unpack-code-linux32.inc
+        mkdir -p ~/esp
+        cd ~/esp
+        tar -xzf ~/Downloads/xtensa-esp32-elf-linux64-1.22.0-80-g6c4433a-5.2.0.tar.gz
 
 .. _setup-linux-toolchain-add-it-to-path:
 
@@ -55,17 +46,17 @@ ESP32 toolchain for Linux is available for download from Espressif website:
 
     To use it, you will need to update your ``PATH`` environment variable in ``~/.profile`` file. To make ``xtensa-esp32-elf`` available for all terminal sessions, add the following line to your ``~/.profile`` file::
 
-        export PATH="$HOME/esp/xtensa-esp32-elf/bin:$PATH"
+        export PATH="$PATH:$HOME/esp/xtensa-esp32-elf/bin"
 
     Alternatively, you may create an alias for the above command. This way you can get the toolchain only when you need it. To do this, add different line to your ``~/.profile`` file::
 
-        alias get_esp32='export PATH="$HOME/esp/xtensa-esp32-elf/bin:$PATH"'
+        alias get_esp32='export PATH="$PATH:$HOME/esp/xtensa-esp32-elf/bin"'
 
     Then when you need the toolchain you can type ``get_esp32`` on the command line and the toolchain will be added to your ``PATH``.
 
     .. note::
 
-        If you have ``/bin/bash`` set as login shell, and both ``.bash_profile`` and ``.profile`` exist, then update ``.bash_profile`` instead. In CentOS, ``alias`` should set in ``.bashrc``.
+        If you have ``/bin/bash`` set as login shell, and both ``.bash_profile`` and ``.profile`` exist, then update ``.bash_profile`` instead.
 
 3.  Log off and log in back to make the ``.profile`` changes effective. Run the following command to verify if ``PATH`` is correctly set::
 

@@ -89,7 +89,12 @@ typedef struct {
 /*****************************************************************************
 **  Static variables
 ******************************************************************************/
+#if CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
 static btc_av_cb_t btc_av_cb = {0};
+#else
+static btc_av_cb_t btc_av_cb = {0};
+#endif
+
 
 #if BTC_AV_SRC_INCLUDED
 static osi_alarm_t *tle_av_open_on_rc = NULL;

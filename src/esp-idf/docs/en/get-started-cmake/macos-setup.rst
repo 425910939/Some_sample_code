@@ -15,7 +15,7 @@ ESP-IDF will use the version of Python installed by default on Mac OS.
 
 - install pyserial::
 
-    pip install --user pyserial
+    sudo pip install pyserial
 
 - install CMake & Ninja build:
 
@@ -41,15 +41,15 @@ ESP-IDF will use the version of Python installed by default on Mac OS.
 Toolchain Setup
 ===============
 
-.. include:: /_build/inc/download-links.inc
-
 ESP32 toolchain for macOS is available for download from Espressif website:
 
-|download_link_osx|
+https://dl.espressif.com/dl/xtensa-esp32-elf-osx-1.22.0-80-g6c4433a-5.2.0.tar.gz
 
-Download this file, then extract it in ``~/esp`` directory:
+Download this file, then extract it in ``~/esp`` directory::
 
-.. include:: /_build/inc/unpack-code-osx.inc
+    mkdir -p ~/esp
+    cd ~/esp
+    tar -xzf ~/Downloads/xtensa-esp32-elf-osx-1.22.0-80-g6c4433a-5.2.0.tar.gz
 
 .. _setup-macos-toolchain-add-it-to-path-cmake:
 
@@ -57,11 +57,11 @@ The toolchain will be extracted into ``~/esp/xtensa-esp32-elf/`` directory.
 
 To use it, you will need to update your ``PATH`` environment variable in ``~/.profile`` file. To make ``xtensa-esp32-elf`` available for all terminal sessions, add the following line to your ``~/.profile`` file::
 
-    export PATH=$HOME/esp/xtensa-esp32-elf/bin:$PATH
+    export PATH=$PATH:$HOME/esp/xtensa-esp32-elf/bin
 
 Alternatively, you may create an alias for the above command. This way you can get the toolchain only when you need it. To do this, add different line to your ``~/.profile`` file::
 
-    alias get_esp32="export PATH=$HOME/esp/xtensa-esp32-elf/bin:$PATH"
+    alias get_esp32="export PATH=$PATH:$HOME/esp/xtensa-esp32-elf/bin"
 
 Then when you need the toolchain you can type ``get_esp32`` on the command line and the toolchain will be added to your ``PATH``.
 

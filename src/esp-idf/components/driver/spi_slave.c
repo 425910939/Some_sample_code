@@ -29,6 +29,7 @@
 #include "freertos/semphr.h"
 #include "freertos/xtensa_api.h"
 #include "freertos/task.h"
+#include "freertos/ringbuf.h"
 #include "soc/soc.h"
 #include "soc/soc_memory_layout.h"
 #include "soc/dport_reg.h"
@@ -45,18 +46,6 @@ static const char *SPI_TAG = "spi_slave";
     }
 
 #define VALID_HOST(x) (x>SPI_HOST && x<=VSPI_HOST)
-
-#ifdef CONFIG_SPI_SLAVE_ISR_IN_IRAM
-#define SPI_SLAVE_ISR_ATTR IRAM_ATTR
-#else
-#define SPI_SLAVE_ISR_ATTR
-#endif
-
-#ifdef CONFIG_SPI_SLAVE_IN_IRAM
-#define SPI_SLAVE_ATTR IRAM_ATTR
-#else
-#define SPI_SLAVE_ATTR
-#endif
 
 typedef struct {
     int id;
@@ -112,7 +101,7 @@ esp_err_t spi_slave_initialize(spi_host_device_t host, const spi_bus_config_t *b
 
     spi_chan_claimed=spicommon_periph_claim(host);
     SPI_CHECK(spi_chan_claimed, "host already in use", ESP_ERR_INVALID_STATE);
-
+    
     if ( dma_chan != 0 ) {
         dma_chan_claimed=spicommon_dma_chan_claim(dma_chan);
         if ( !dma_chan_claimed ) {
@@ -174,11 +163,7 @@ esp_err_t spi_slave_initialize(spi_host_device_t host, const spi_bus_config_t *b
         goto cleanup;
     }
 
-    int flags = ESP_INTR_FLAG_INTRDISABLED;
-#ifdef CONFIG_SPI_SLAVE_ISR_IN_IRAM
-    flags |= ESP_INTR_FLAG_IRAM;
-#endif
-    err = esp_intr_alloc(spicommon_irqsource_for_host(host), flags, spi_intr, (void *)spihost[host], &spihost[host]->intr);
+    err = esp_intr_alloc(spicommon_irqsource_for_host(host), ESP_INTR_FLAG_INTRDISABLED, spi_intr, (void *)spihost[host], &spihost[host]->intr);
     if (err != ESP_OK) {
         ret = err;
         goto cleanup;
@@ -290,14 +275,14 @@ esp_err_t spi_slave_free(spi_host_device_t host)
 }
 
 
-esp_err_t SPI_SLAVE_ATTR spi_slave_queue_trans(spi_host_device_t host, const spi_slave_transaction_t *trans_desc, TickType_t ticks_to_wait)
+esp_err_t spi_slave_queue_trans(spi_host_device_t host, const spi_slave_transaction_t *trans_desc, TickType_t ticks_to_wait)
 {
     BaseType_t r;
     SPI_CHECK(VALID_HOST(host), "invalid host", ESP_ERR_INVALID_ARG);
     SPI_CHECK(spihost[host], "host not slave", ESP_ERR_INVALID_ARG);
-    SPI_CHECK(spihost[host]->dma_chan == 0 || trans_desc->tx_buffer==NULL || esp_ptr_dma_capable(trans_desc->tx_buffer),
+    SPI_CHECK(spihost[host]->dma_chan == 0 || trans_desc->tx_buffer==NULL || esp_ptr_dma_capable(trans_desc->tx_buffer), 
 			"txdata not in DMA-capable memory", ESP_ERR_INVALID_ARG);
-    SPI_CHECK(spihost[host]->dma_chan == 0 || trans_desc->rx_buffer==NULL || esp_ptr_dma_capable(trans_desc->rx_buffer),
+    SPI_CHECK(spihost[host]->dma_chan == 0 || trans_desc->rx_buffer==NULL || esp_ptr_dma_capable(trans_desc->rx_buffer), 
 			"rxdata not in DMA-capable memory", ESP_ERR_INVALID_ARG);
 
     SPI_CHECK(trans_desc->length <= spihost[host]->max_transfer_sz * 8, "data transfer > host maximum", ESP_ERR_INVALID_ARG);
@@ -308,7 +293,7 @@ esp_err_t SPI_SLAVE_ATTR spi_slave_queue_trans(spi_host_device_t host, const spi
 }
 
 
-esp_err_t SPI_SLAVE_ATTR spi_slave_get_trans_result(spi_host_device_t host, spi_slave_transaction_t **trans_desc, TickType_t ticks_to_wait)
+esp_err_t spi_slave_get_trans_result(spi_host_device_t host, spi_slave_transaction_t **trans_desc, TickType_t ticks_to_wait)
 {
     BaseType_t r;
     SPI_CHECK(VALID_HOST(host), "invalid host", ESP_ERR_INVALID_ARG);
@@ -319,7 +304,7 @@ esp_err_t SPI_SLAVE_ATTR spi_slave_get_trans_result(spi_host_device_t host, spi_
 }
 
 
-esp_err_t SPI_SLAVE_ATTR spi_slave_transmit(spi_host_device_t host, spi_slave_transaction_t *trans_desc, TickType_t ticks_to_wait)
+esp_err_t spi_slave_transmit(spi_host_device_t host, spi_slave_transaction_t *trans_desc, TickType_t ticks_to_wait)
 {
     esp_err_t ret;
     spi_slave_transaction_t *ret_trans;
@@ -356,7 +341,7 @@ static void dumpll(lldesc_t *ll)
 }
 #endif
 
-static void SPI_SLAVE_ISR_ATTR spi_slave_restart_after_dmareset(void *arg)
+static void IRAM_ATTR spi_slave_restart_after_dmareset(void *arg)
 {
     spi_slave_t *host = (spi_slave_t *)arg;
     esp_intr_enable(host->intr);
@@ -365,7 +350,7 @@ static void SPI_SLAVE_ISR_ATTR spi_slave_restart_after_dmareset(void *arg)
 //This is run in interrupt context and apart from initialization and destruction, this is the only code
 //touching the host (=spihost[x]) variable. The rest of the data arrives in queues. That is why there are
 //no muxes in this code.
-static void SPI_SLAVE_ISR_ATTR spi_intr(void *arg)
+static void IRAM_ATTR spi_intr(void *arg)
 {
     BaseType_t r;
     BaseType_t do_yield = pdFALSE;
@@ -385,7 +370,7 @@ static void SPI_SLAVE_ISR_ATTR spi_intr(void *arg)
         if (host->dma_chan != 0) freeze_cs(host);
 
         //when data of cur_trans->length are all sent, the slv_rdata_bit
-        //will be the length sent-1 (i.e. cur_trans->length-1 ), otherwise
+        //will be the length sent-1 (i.e. cur_trans->length-1 ), otherwise 
         //the length sent.
         host->cur_trans->trans_len = host->hw->slv_rd_bit.slv_rdata_bit;
         if (host->cur_trans->trans_len == host->cur_trans->length - 1) {

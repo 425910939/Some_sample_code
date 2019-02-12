@@ -463,7 +463,7 @@ IoT_Error_t aws_iot_mqtt_connect(AWS_IoT_Client *pClient, const IoT_Client_Conne
 	if(NULL == pClient) {
 		FUNC_EXIT_RC(NULL_VALUE_ERROR);
 	}
-    aws_iot_mqtt_internal_flushBuffers( pClient );
+
 	clientState = aws_iot_mqtt_get_client_state(pClient);
 
 	if(false == _aws_iot_mqtt_is_client_state_valid_for_connect(clientState)) {
@@ -521,7 +521,7 @@ IoT_Error_t _aws_iot_mqtt_internal_disconnect(AWS_IoT_Client *pClient) {
 
 	/* send the disconnect packet */
 	if(serialized_len > 0) {
-		(void)aws_iot_mqtt_internal_send_packet(pClient, serialized_len, &timer);
+		aws_iot_mqtt_internal_send_packet(pClient, serialized_len, &timer);
 	}
 
 	/* Clean network stack */

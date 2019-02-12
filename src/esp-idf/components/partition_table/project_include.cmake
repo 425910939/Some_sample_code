@@ -37,9 +37,9 @@ function(get_partition_info variable get_part_info_args)
         OUTPUT_VARIABLE result
         RESULT_VARIABLE exit_code
         OUTPUT_STRIP_TRAILING_WHITESPACE)
-    if(NOT ${exit_code} EQUAL 0 AND NOT ${exit_code} EQUAL 1)
+    if(NOT ${exit_code} EQUAL 0)
         # can't fail here as it would prevent the user from running 'menuconfig' again
-        message(WARNING "parttool.py execution failed (${result}), problem with partition CSV file (see above)")
+        message(WARNING "parttool.py execution failed, problem with partition CSV file (see above)")
     endif()
     set(${variable} ${result} PARENT_SCOPE)
 endfunction()
@@ -50,9 +50,5 @@ if(CONFIG_ESP32_PHY_INIT_DATA_IN_PARTITION)
 endif()
 
 get_partition_info(APP_PARTITION_OFFSET "--default-boot-partition --offset")
-
-get_partition_info(OTADATA_PARTITION_OFFSET "--type data --subtype ota --offset")
-
-get_partition_info(OTADATA_PARTITION_SIZE "--type data --subtype ota --size")
 
 endif()

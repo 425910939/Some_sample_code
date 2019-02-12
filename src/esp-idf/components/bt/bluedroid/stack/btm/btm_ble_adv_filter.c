@@ -47,11 +47,15 @@
 
 #define BTM_BLE_PF_BIT_TO_MASK(x)          (UINT16)(1 << (x))
 
-
+#if CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
+tBTM_BLE_ADV_FILTER_CB EXT_RAM_ATTR btm_ble_adv_filt_cb;
+tBTM_BLE_VSC_CB EXT_RAM_ATTR cmn_ble_vsc_cb;
+static const BD_ADDR EXT_RAM_ATTR na_bda;
+#else
 tBTM_BLE_ADV_FILTER_CB btm_ble_adv_filt_cb;
 tBTM_BLE_VSC_CB cmn_ble_vsc_cb;
-static const BD_ADDR     na_bda = {0};
-
+static const BD_ADDR na_bda = {0};
+#endif
 static UINT8 btm_ble_cs_update_pf_counter(tBTM_BLE_SCAN_COND_OP action,
         UINT8 cond_type, tBLE_BD_ADDR *p_bd_addr, UINT8 num_available);
 
@@ -331,8 +335,8 @@ void btm_ble_scan_pf_cmpl_cback(tBTM_VSC_CMPL *p_params)
         break;
     }
 
-    BTM_TRACE_DEBUG("btm_ble_scan_pf_cmpl_cback: calling the cback: %d", cb_evt);
     switch (cb_evt) {
+        BTM_TRACE_DEBUG("btm_ble_scan_pf_cmpl_cback: calling the cback: %d", cb_evt);
     case BTM_BLE_FILT_CFG:
         if (NULL != p_scan_cfg_cback) {
             p_scan_cfg_cback(action, cond_type, num_avail, status, ref_value);

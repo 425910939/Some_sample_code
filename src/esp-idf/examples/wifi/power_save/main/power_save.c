@@ -96,12 +96,13 @@ void app_main()
     ESP_ERROR_CHECK( ret );
 
 #if CONFIG_PM_ENABLE
-    // Configure dynamic frequency scaling:
-    // maximum and minimum frequencies are set in sdkconfig,
-    // automatic light sleep is enabled if tickless idle support is enabled.
+    // Configure dynamic frequency scaling: maximum frequency is set in sdkconfig,
+    // minimum frequency is XTAL.
+    rtc_cpu_freq_t max_freq;
+    rtc_clk_cpu_freq_from_mhz(CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ, &max_freq);
     esp_pm_config_esp32_t pm_config = {
-            .max_freq_mhz = CONFIG_EXAMPLE_MAX_CPU_FREQ_MHZ,
-            .min_freq_mhz = CONFIG_EXAMPLE_MIN_CPU_FREQ_MHZ,
+            .max_cpu_freq = max_freq,
+            .min_cpu_freq = RTC_CPU_FREQ_XTAL,
 #if CONFIG_FREERTOS_USE_TICKLESS_IDLE
             .light_sleep_enable = true
 #endif

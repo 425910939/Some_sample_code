@@ -19,6 +19,7 @@
 #include "common/bt_trace.h"
 #include "common/bt_defs.h"
 #include "device/controller.h"
+#include "hci/buffer_allocator.h"
 #include "hci/hci_internals.h"
 #include "hci/hci_layer.h"
 #include "hci/packet_fragmenter.h"
@@ -43,6 +44,7 @@
 
 // Our interface and callbacks
 static const packet_fragmenter_t interface;
+static const allocator_t *buffer_allocator;
 static const controller_t *controller;
 static const packet_fragmenter_callbacks_t *callbacks;
 static hash_map_t *partial_packets;
@@ -151,7 +153,7 @@ static void reassemble_and_dispatch(BT_HDR *packet)
             if (partial_packet) {
                 HCI_TRACE_WARNING("%s found unfinished packet for handle with start packet. Dropping old.\n", __func__);
                 hash_map_erase(partial_packets, (void *)(uintptr_t)handle);
-                osi_free(partial_packet);
+                buffer_allocator->free(partial_packet);
             }
 
             uint16_t full_length = l2cap_length + L2CAP_HEADER_SIZE + HCI_ACL_PREAMBLE_SIZE;
@@ -163,7 +165,8 @@ static void reassemble_and_dispatch(BT_HDR *packet)
                 callbacks->reassembled(packet);
                 return;
             }
-            partial_packet = (BT_HDR *)osi_calloc(full_length + sizeof(BT_HDR));
+
+            partial_packet = (BT_HDR *)buffer_allocator->alloc(full_length + sizeof(BT_HDR));
             partial_packet->event = packet->event;
             partial_packet->len = full_length;
             partial_packet->offset = packet->len;
@@ -177,11 +180,11 @@ static void reassemble_and_dispatch(BT_HDR *packet)
 
             hash_map_set(partial_packets, (void *)(uintptr_t)handle, partial_packet);
             // Free the old packet buffer, since we don't need it anymore
-            osi_free(packet);
+            buffer_allocator->free(packet);
         } else {
             if (!partial_packet) {
                 HCI_TRACE_ERROR("%s got continuation for unknown packet. Dropping it.\n", __func__);
-                osi_free(packet);
+                buffer_allocator->free(packet);
                 return;
             }
 
@@ -201,7 +204,7 @@ static void reassemble_and_dispatch(BT_HDR *packet)
             );
 
             // Free the old packet buffer, since we don't need it anymore
-            osi_free(packet);
+            buffer_allocator->free(packet);
             partial_packet->offset = projected_offset;
 
             if (partial_packet->offset == partial_packet->len) {
@@ -227,6 +230,7 @@ static const packet_fragmenter_t interface = {
 const packet_fragmenter_t *packet_fragmenter_get_interface()
 {
     controller = controller_get_interface();
+    buffer_allocator = buffer_allocator_get_interface();
     return &interface;
 }
 

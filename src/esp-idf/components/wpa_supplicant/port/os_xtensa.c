@@ -39,9 +39,26 @@ unsigned long os_random(void)
     return esp_random();
 }
 
+unsigned long r_rand(void) __attribute__((alias("os_random")));
+
+
 int os_get_random(unsigned char *buf, size_t len)
 {
-    esp_fill_random(buf, len);
+    int i, j;
+    unsigned long tmp;
+
+    for (i = 0; i < ((len + 3) & ~3) / 4; i++) {
+        tmp = r_rand();
+
+        for (j = 0; j < 4; j++) {
+            if ((i * 4 + j) < len) {
+                buf[i * 4 + j] = (uint8_t)(tmp >> (j * 8));
+            } else {
+                break;
+            }
+        }
+    }
+
     return 0;
 }
 

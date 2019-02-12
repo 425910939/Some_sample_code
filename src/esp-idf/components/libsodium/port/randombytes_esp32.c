@@ -14,6 +14,14 @@
 #include "randombytes_default.h"
 #include "esp_system.h"
 
+static void randombytes_esp32_random_buf(void * const buf, const size_t size)
+{
+    uint8_t *p = (uint8_t *)buf;
+    for (size_t i = 0; i < size; i++) {
+        p[i] = esp_random();
+    }
+}
+
 static const char *randombytes_esp32_implementation_name(void)
 {
     return "esp32";
@@ -31,7 +39,7 @@ const struct randombytes_implementation randombytes_esp32_implementation = {
     .random = esp_random,
     .stir = NULL,
     .uniform = NULL,
-    .buf = esp_fill_random,
+    .buf = randombytes_esp32_random_buf,
     .close = NULL,
 };
 

@@ -20,7 +20,7 @@ extern "C" {
 #endif
 
 #define SC_ACK_TASK_PRIORITY             2          /*!< Priority of sending smartconfig ACK task */
-#define SC_ACK_TASK_STACK_SIZE           2048       /*!< Stack size of sending smartconfig ACK task */
+#define SC_ACK_TASK_STACK_SIZE           2048+512   /*!< Stack size of sending smartconfig ACK task */
 
 #define SC_ACK_TOUCH_SERVER_PORT         18266      /*!< ESP touch UDP port of server on cellphone */
 #define SC_ACK_AIRKISS_SERVER_PORT       10000      /*!< Airkiss UDP port of server on cellphone */

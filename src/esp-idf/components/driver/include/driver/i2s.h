@@ -510,6 +510,18 @@ esp_err_t i2s_adc_enable(i2s_port_t i2s_num);
  */
 esp_err_t i2s_adc_disable(i2s_port_t i2s_num);
 
+/**
+ * @brief Set i2s mclk output pin
+ * @param i2s_num i2s port index
+ * @param gpio_num gpio number index, only support GPIO0, GPIO1 and GPIO3.
+ * @note GPIO1 and GPIO3 default is UART.
+ * @return
+ *     - ESP_OK                 Success
+ *     - ESP_ERR_INVALID_ARG    Parameter error
+ *     - ESP_ERR_INVALID_STATE  Driver state error
+ */
+esp_err_t i2s_mclk_gpio_select(i2s_port_t i2s_num, gpio_num_t gpio_num);
+
 #ifdef __cplusplus
 }
 #endif

@@ -8,15 +8,14 @@ ifndef CONFIG_NO_BLOBS
 LIBS += core rtc net80211 pp wpa smartconfig coexist wps wpa2 espnow phy mesh
 endif
 
-ifdef CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY  
-   # This linker script must come before esp32.common.ld
-   LINKER_SCRIPTS += esp32.extram.bss.ld
-endif
-
 #Linker scripts used to link the final application.
 #Warning: These linker scripts are only used when the normal app is compiled; the bootloader
 #specifies its own scripts.
+ifdef CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
+LINKER_SCRIPTS += esp32.common.bss_optimization.ld esp32.rom.ld esp32.peripherals.ld
+else
 LINKER_SCRIPTS += esp32.common.ld esp32.rom.ld esp32.peripherals.ld
+endif
 
 #Force pure functions from libgcc.a to be linked from ROM
 LINKER_SCRIPTS += esp32.rom.libgcc.ld

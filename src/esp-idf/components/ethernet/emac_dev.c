@@ -14,8 +14,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+
 #include "rom/ets_sys.h"
 #include "rom/gpio.h"
 
@@ -32,6 +31,8 @@
 #include "sdkconfig.h"
 
 #include "emac_common.h"
+
+static const char *TAG = "emac";
 
 void emac_enable_flowctrl(void)
 {
@@ -71,6 +72,18 @@ void emac_disable_dma_rx(void)
     REG_CLR_BIT(EMAC_DMAOPERATION_MODE_REG, EMAC_START_STOP_RX);
 }
 
+void emac_reset(void)
+{
+    REG_SET_BIT(EMAC_DMABUSMODE_REG, EMAC_SW_RST);
+
+    while (REG_GET_BIT(EMAC_DMABUSMODE_REG, EMAC_SW_RST) == 1) {
+        //nothing to do ,if stop here,maybe emac have not clk input.
+        ESP_LOGI(TAG, "emac resetting ....");
+    }
+
+    ESP_LOGI(TAG, "emac reset done");
+}
+
 void emac_enable_clk(bool enable)
 {
     if (enable == true) {
@@ -85,6 +98,7 @@ void emac_dma_init(void)
     REG_SET_BIT(EMAC_DMAOPERATION_MODE_REG, EMAC_FWD_UNDER_GF);
     REG_SET_BIT(EMAC_DMAOPERATION_MODE_REG, EMAC_OPT_SECOND_FRAME);
     REG_SET_FIELD(EMAC_DMABUSMODE_REG, EMAC_PROG_BURST_LEN, 4);
+    REG_SET_BIT(EMAC_DMAOPERATION_MODE_REG, EMAC_DMAOPERATION_MODE_REG);
 }
 
 void emac_mac_enable_txrx(void)
@@ -98,4 +112,5 @@ void emac_mac_init(void)
     REG_SET_BIT(EMAC_GMACCONFIG_REG, EMAC_EMACDUPLEX);
     REG_SET_BIT(EMAC_GMACCONFIG_REG, EMAC_EMACMII);
     REG_CLR_BIT(EMAC_GMACCONFIG_REG, EMAC_EMACFESPEED);
+    REG_SET_BIT(EMAC_GMACFF_REG, EMAC_PMODE);
 }

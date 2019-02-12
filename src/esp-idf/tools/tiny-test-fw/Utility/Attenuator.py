@@ -20,7 +20,6 @@ This file provide method to control programmable attenuator.
 
 import time
 import serial
-import codecs
 
 
 def set_att(port, att, att_fix=False):
@@ -52,11 +51,11 @@ def set_att(port, att, att_fix=False):
     cmd_hex = "7e7e10{:02x}{:x}".format(att_t, 0x10 + att_t)
     exp_res_hex = "7e7e20{:02x}00{:x}".format(att_t, 0x20 + att_t)
 
-    cmd = codecs.decode(cmd_hex, "hex")
-    exp_res = codecs.decode(exp_res_hex, "hex")
+    cmd = cmd_hex.decode("hex")
+    exp_res = exp_res_hex.decode("hex")
 
     serial_port.write(cmd)
-    res = b""
+    res = ""
 
     for i in range(5):
         res += serial_port.read(20)

@@ -21,9 +21,11 @@
 #include "common/bt_target.h"
 //#include "bt_utils.h"
 #include "gap_int.h"
-
+#if CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
+tGAP_CB EXT_RAM_ATTR gap_cb;
+#else
 tGAP_CB  gap_cb;
-
+#endif
 /*******************************************************************************
 **
 ** Function         GAP_SetTraceLevel

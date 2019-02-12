@@ -89,6 +89,22 @@ typedef struct {
     int fixed_mclk;             /*!< I2S fixed MLCK clock */
 } i2s_obj_t;
 
+/**
+ * @brief Pre define APLL parameters, save compute time
+ *        | bits_per_sample | rate | sdm0 | sdm1 | sdm2 | odir
+ */
+static const int apll_predefine[][6]={
+    {16, 44100,  25, 231, 3,  5},
+    {16, 48000, 112, 95,  3,  4},
+    {16, 16000, 112, 95,  3,  16},
+    {16, 96000, 112, 95,  3,  1},
+    {32, 44100, 25,  8,   5,  2},
+    {32, 16000, 112, 95,  3,  7},
+    {32, 48000, 112, 95,  3,  1},
+    {32, 96000, 149, 212, 5,  0},
+    { 0,     0,   0,   0, 0,  0}
+};
+
 static i2s_obj_t *p_i2s_obj[I2S_NUM_MAX] = {0};
 static i2s_dev_t* I2S[I2S_NUM_MAX] = {&I2S0, &I2S1};
 static portMUX_TYPE i2s_spinlock[I2S_NUM_MAX] = {portMUX_INITIALIZER_UNLOCKED, portMUX_INITIALIZER_UNLOCKED};
@@ -234,9 +250,12 @@ static esp_err_t i2s_apll_calculate_fi2s(int rate, int bits_per_sample, int *sdm
     int _odir, _sdm0, _sdm1, _sdm2;
     float avg;
     float min_rate, max_rate, min_diff;
-    if (rate/bits_per_sample/2/8 < APLL_I2S_MIN_RATE) {
+    if (rate < APLL_I2S_MIN_RATE) {
         return ESP_ERR_INVALID_ARG;
     }
+  /*  if (rate/bits_per_sample/2/8 < APLL_I2S_MIN_RATE) {
+        return ESP_ERR_INVALID_ARG;
+    }*/
 
     *sdm0 = 0;
     *sdm1 = 0;
@@ -244,6 +263,17 @@ static esp_err_t i2s_apll_calculate_fi2s(int rate, int bits_per_sample, int *sdm
     *odir = 0;
     min_diff = APLL_MAX_FREQ;
 
+    int i = 0;
+    while (apll_predefine[i][0]) {
+        if(apll_predefine[i][1] == rate && apll_predefine[i][0] == bits_per_sample){
+            *sdm0 = apll_predefine[i][2];
+            *sdm1 = apll_predefine[i][3];
+            *sdm2 = apll_predefine[i][4];
+            *odir = apll_predefine[i][5];
+            return ESP_OK;
+        }
+        i++;
+    }
     for (_sdm2 = 4; _sdm2 < 9; _sdm2 ++) {
         max_rate = i2s_apll_get_fi2s(bits_per_sample, 255, 255, _sdm2, 0);
         min_rate = i2s_apll_get_fi2s(bits_per_sample, 0, 0, _sdm2, 31);
@@ -436,7 +466,7 @@ esp_err_t i2s_set_clk(i2s_port_t i2s_num, uint32_t rate, i2s_bits_per_sample_t b
         fi2s_clk = p_i2s_obj[i2s_num]->fixed_mclk;
         m_scale = fi2s_clk/bits/rate/channel;
     }
-    if(p_i2s_obj[i2s_num]->use_apll && i2s_apll_calculate_fi2s(fi2s_clk, bits, &sdm0, &sdm1, &sdm2, &odir) == ESP_OK) {
+    if(p_i2s_obj[i2s_num]->use_apll && i2s_apll_calculate_fi2s(rate, bits, &sdm0, &sdm1, &sdm2, &odir) == ESP_OK) {
         ESP_LOGD(I2S_TAG, "sdm0=%d, sdm1=%d, sdm2=%d, odir=%d", sdm0, sdm1, sdm2, odir);
         rtc_clk_apll_enable(1, sdm0, sdm1, sdm2, odir);
         I2S[i2s_num]->clkm_conf.clkm_div_num = 1;
@@ -1320,4 +1350,39 @@ int i2s_pop_sample(i2s_port_t i2s_num, void *sample, TickType_t ticks_to_wait)
     }
 }
 
-
+esp_err_t i2s_mclk_gpio_select(i2s_port_t i2s_num, gpio_num_t gpio_num)
+{
+    if (i2s_num >= I2S_NUM_MAX) {
+        ESP_LOGE(I2S_TAG, "Does not support i2s number(%d)", i2s_num);
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (gpio_num != GPIO_NUM_0 && gpio_num != GPIO_NUM_1 && gpio_num != GPIO_NUM_3) {
+        ESP_LOGE(I2S_TAG, "Only support GPIO0/GPIO1/GPIO3, gpio_num:%d", gpio_num);
+        return ESP_ERR_INVALID_ARG;
+    }
+    ESP_LOGI(I2S_TAG, "I2S%d, MCLK output by GPIO%d", i2s_num, gpio_num);
+    if (i2s_num == I2S_NUM_0) {
+        if (gpio_num == GPIO_NUM_0) {
+            PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0_CLK_OUT1);
+            WRITE_PERI_REG(PIN_CTRL, 0xFFF0);
+        } else if (gpio_num == GPIO_NUM_1) {
+            PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0TXD_U, FUNC_U0TXD_CLK_OUT3);
+            WRITE_PERI_REG(PIN_CTRL, 0xF0F0);
+        } else {
+            PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0RXD_U, FUNC_U0RXD_CLK_OUT2);
+            WRITE_PERI_REG(PIN_CTRL, 0xFF00);
+        }
+    } else if (i2s_num == I2S_NUM_1) {
+        if (gpio_num == GPIO_NUM_0) {
+            PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0_CLK_OUT1);
+            WRITE_PERI_REG(PIN_CTRL, 0xFFFF);
+        } else if (gpio_num == GPIO_NUM_1) {
+            PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0TXD_U, FUNC_U0TXD_CLK_OUT3);
+            WRITE_PERI_REG(PIN_CTRL, 0xF0FF);
+        } else {
+            PIN_FUNC_SELECT(PERIPHS_IO_MUX_U0RXD_U, FUNC_U0RXD_CLK_OUT2);
+            WRITE_PERI_REG(PIN_CTRL, 0xFF0F);
+        }
+    }
+    return ESP_OK;
+}

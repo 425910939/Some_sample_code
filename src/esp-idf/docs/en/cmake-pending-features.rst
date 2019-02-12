@@ -4,6 +4,7 @@
    - Eclipse IDE Documentation
    - Secure Boot
    - Flash Encryption
+   - ULP toolchain.
 
    Support for these features will be available before CMake becomes the default build system.
 

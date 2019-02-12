@@ -8,13 +8,7 @@
 */
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+// Register WiFi functions
+void register_wifi(void);
+void initialise_wifi(void);
 
-#include "cmd_system.h"
-#include "cmd_wifi.h"
-
-#ifdef __cplusplus
-}
-#endif

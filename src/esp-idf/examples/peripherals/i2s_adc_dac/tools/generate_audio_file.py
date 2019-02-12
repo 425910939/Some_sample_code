@@ -1,5 +1,3 @@
-from __future__ import print_function
-from builtins import range
 import os
 import wave
 import struct
@@ -15,7 +13,7 @@ def get_wave_array_str(filename, target_bits):
         cur_lim   = (1 << sampwidth) - 1
         #scale current data to 8-bit data
         val       = val * scale_val / cur_lim
-        val       = int(val + ((scale_val + 1) // 2)) & scale_val
+        val       = (val + ((scale_val + 1) / 2)) & scale_val
         array_str += "0x%x, "%(val)
         if (i + 1) % 16 == 0:
             array_str += "\n"
@@ -23,12 +21,12 @@ def get_wave_array_str(filename, target_bits):
 
 def gen_wave_table(wav_file_list, target_file_name, scale_bits = 8):
     with open(target_file_name, "w") as audio_table:
-        print('#include <stdio.h>', file=audio_table)
-        print('const unsigned char audio_table[] = {', file=audio_table)
+        print >> audio_table, '#include <stdio.h>'
+        print >> audio_table, 'const unsigned char audio_table[] = {'
         for wav in wav_file_list:
             print("processing: {}".format(wav))
-            print(get_wave_array_str(filename = wav, target_bits = scale_bits), file=audio_table)
-        print('};\n', file=audio_table)
+            print >> audio_table, get_wave_array_str(filename = wav, target_bits = scale_bits)
+        print >>audio_table,'};\n'
     print("Done...")
 
 if __name__=='__main__':

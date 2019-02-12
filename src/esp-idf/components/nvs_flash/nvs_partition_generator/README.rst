@@ -5,7 +5,7 @@ Introduction
 ------------
 
 :component_file:`nvs_flash/nvs_partition_generator/nvs_partition_gen.py` utility is designed to help create a binary file, compatible with NVS architecture defined in :doc:`Non-Volatile Storage </api-reference/storage/nvs_flash>`, based on user provided key-value pairs in a CSV file.
-Utility is ideally suited for generating a binary blob, containing data specific to ODM/OEM, which can be flashed externally at the time of device manufacturing. This helps manufacturers set unique value for various parameters for each device, e.g. serial number, while using same application firmware for all devices.
+Utility is ideally suited for generating a binary blob, containing data specific to ODM/OEM, which can be flashed externally at the time of device manufacturing. This helps manufacturers set unique value for various parameters for each device, e.g. serial number, while using same application firmaware for all devices.
 
 Prerequisites
 -------------
@@ -116,7 +116,6 @@ A sample CSV file is provided with the utility::
 
     python nvs_partition_gen.py sample_singlepage_blob.csv partition_single_page.bin --version v1
 
-
 +------------------------+----------------------------------------------------------------------------------------------+
 |   Arguments            |                                     Description                                              |
 +========================+==============================================================================================+
@@ -124,7 +123,7 @@ A sample CSV file is provided with the utility::
 +------------------------+----------------------------------------------------------------------------------------------+
 | output                 | Path to output converted binary file. Will use stdout if omitted                             |
 +------------------------+----------------------------------------------------------------------------------------------+
-| size                   | Size of NVS Partition in bytes (must be multiple of 4096)                                    |
+| size                   | Size of NVS Partition in KB. Eg. 12KB                                                        |
 +------------------------+----------------------------------------------------------------------------------------------+
 | --version {v1,v2}      |  Set version. Default: v2                                                                    |
 +-------------------------------+---------------------------------------------------------------------------------------+

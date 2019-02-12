@@ -18,7 +18,6 @@
 #include "esp_wifi.h"
 #include "tcpip_adapter.h"
 #include "esp_event_loop.h"
-#include "cmd_wifi.h"
 
 static EventGroupHandle_t wifi_event_group;
 const int CONNECTED_BIT = BIT0;

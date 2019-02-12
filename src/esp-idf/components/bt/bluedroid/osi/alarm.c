@@ -43,9 +43,11 @@ enum {
 
 static osi_mutex_t alarm_mutex;
 static int alarm_state;
-
+#if CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
+static struct alarm_t EXT_RAM_ATTR alarm_cbs[ALARM_CBS_NUM];
+#else
 static struct alarm_t alarm_cbs[ALARM_CBS_NUM];
-
+#endif
 static osi_alarm_err_t alarm_free(osi_alarm_t *alarm);
 static osi_alarm_err_t alarm_set(osi_alarm_t *alarm, period_ms_t timeout, bool is_periodic);
 

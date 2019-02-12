@@ -26,21 +26,23 @@ extern "C" {
 #include "aws_iot_error.h"
 #include "aws_iot_shadow_json_data.h"
 
-bool isJsonValidAndParse(const char *pJsonDocument, size_t jsonSize, void *pJsonHandler, int32_t *pTokenCount);
+bool isJsonValidAndParse(const char *pJsonDocument, void *pJsonHandler, int32_t *pTokenCount);
 
 bool isJsonKeyMatchingAndUpdateValue(const char *pJsonDocument, void *pJsonHandler, int32_t tokenCount,
 									 jsonStruct_t *pDataStruct, uint32_t *pDataLength, int32_t *pDataPosition);
 
-IoT_Error_t aws_iot_shadow_internal_get_request_json(char *pBuffer, size_t bufferSize);
+void aws_iot_shadow_internal_get_request_json(char *pJsonDocument);
 
-IoT_Error_t aws_iot_shadow_internal_delete_request_json(char *pBuffer, size_t bufferSize);
+void aws_iot_shadow_internal_delete_request_json(char *pJsonDocument);
 
 void resetClientTokenSequenceNum(void);
 
 
-bool isReceivedJsonValid(const char *pJsonDocument, size_t jsonSize);
+bool isReceivedJsonValid(const char *pJsonDocument);
 
-bool extractClientToken(const char *pJsonDocument, size_t jsonSize, char *pExtractedClientToken, size_t clientTokenSize);
+void FillWithClientToken(char *pStringToUpdateClientToken);
+
+bool extractClientToken(const char *pJsonDocumentToBeSent, char *pExtractedClientToken);
 
 bool extractVersionNumber(const char *pJsonDocument, void *pJsonHandler, int32_t tokenCount, uint32_t *pVersionNumber);
 

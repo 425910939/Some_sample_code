@@ -6,6 +6,6 @@ set(COMPONENT_SRCS "emac_dev.c"
 set(COMPONENT_ADD_INCLUDEDIRS "include")
 
 set(COMPONENT_REQUIRES)
-set(COMPONENT_PRIV_REQUIRES tcpip_adapter esp_event)
+set(COMPONENT_PRIV_REQUIRES tcpip_adapter)
 
 register_component()

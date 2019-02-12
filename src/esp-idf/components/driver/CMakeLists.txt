@@ -1,5 +1,4 @@
-set(COMPONENT_SRCS "can.c"
-                   "gpio.c"
+set(COMPONENT_SRCS "gpio.c"
                    "i2c.c"
                    "i2s.c"
                    "ledc.c"
@@ -23,6 +22,6 @@ set(COMPONENT_SRCS "can.c"
 set(COMPONENT_ADD_INCLUDEDIRS "include")
 set(COMPONENT_PRIV_INCLUDEDIRS "include/driver")
 
-set(COMPONENT_REQUIRES esp_ringbuf)
+set(COMPONENT_REQUIRES)
 
 register_component()

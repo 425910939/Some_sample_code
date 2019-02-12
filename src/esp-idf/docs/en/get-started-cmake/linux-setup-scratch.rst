@@ -17,7 +17,7 @@ To compile with ESP-IDF you need to get the following packages:
 
 - Ubuntu and Debian::
 
-    sudo apt-get install git wget libncurses-dev flex bison gperf python python-pip python-setuptools python-serial cmake ninja-build ccache
+    sudo apt-get install git wget libncurses-dev flex bison gperf python python-serial cmake ninja-build ccache
 
 - Arch::
 
@@ -51,14 +51,12 @@ Compile the Toolchain from Source
 
         TODO
 
-Create the working directory and go into it::
+Download ``crosstool-NG`` and build it::
 
-  mkdir -p ~/esp
-  cd ~/esp
-
-Download ``crosstool-NG`` and build it:
-
-.. include:: /_build/inc/scratch-build-code.inc
+    cd ~/esp
+    git clone -b xtensa-1.22.x https://github.com/espressif/crosstool-NG.git
+    cd crosstool-NG
+    ./bootstrap && ./configure --enable-local && make install
 
 Build the toolchain::
 

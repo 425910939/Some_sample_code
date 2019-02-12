@@ -22,8 +22,6 @@
 #include "soc/spi_periph.h"
 #include "freertos/ringbuf.h"
 #include "soc/gpio_periph.h"
-#include "sdkconfig.h"
-#include "unity_config.h"
 
 const static char TAG[] = "test_spi";
 
@@ -120,7 +118,7 @@ TEST_CASE("SPI Master clockdiv calculation routines", "[spi]")
 
 static spi_device_handle_t setup_spi_bus(int clkspeed, bool dma) {
     spi_bus_config_t buscfg={
-        .mosi_io_num=26,
+        .mosi_io_num=4,
         .miso_io_num=26,
         .sclk_io_num=25,
         .quadwp_io_num=-1,
@@ -139,24 +137,22 @@ static spi_device_handle_t setup_spi_bus(int clkspeed, bool dma) {
     };
     esp_err_t ret;
     spi_device_handle_t handle;
+    printf("THIS TEST NEEDS A JUMPER BETWEEN IO4 AND IO26\n");
 
     ret=spi_bus_initialize(HSPI_HOST, &buscfg, dma?1:0);
     TEST_ASSERT(ret==ESP_OK);
     ret=spi_bus_add_device(HSPI_HOST, &devcfg, &handle);
     TEST_ASSERT(ret==ESP_OK);
-    //connect MOSI to two devices breaks the output, fix it.
-    gpio_output_sel(26, FUNC_GPIO, HSPID_OUT_IDX);
     printf("Bus/dev inited.\n");
     return handle;
 }
 
-static int spi_test(spi_device_handle_t handle, int num_bytes) {
+static void spi_test(spi_device_handle_t handle, int num_bytes) {
     esp_err_t ret;
     int x;
-    bool success = true;
     srand(num_bytes);
-    char *sendbuf=heap_caps_malloc((num_bytes+3)&(~3), MALLOC_CAP_DMA);
-    char *recvbuf=heap_caps_malloc((num_bytes+3)&(~3), MALLOC_CAP_DMA);
+    char *sendbuf=heap_caps_malloc(num_bytes, MALLOC_CAP_DMA);
+    char *recvbuf=heap_caps_malloc(num_bytes, MALLOC_CAP_DMA);
     for (x=0; x<num_bytes; x++) {
         sendbuf[x]=rand()&0xff;
         recvbuf[x]=0x55;
@@ -185,7 +181,6 @@ static int spi_test(spi_device_handle_t handle, int num_bytes) {
     if (x!=num_bytes) {
         int from=x-16;
         if (from<0) from=0;
-        success = false;
         printf("Error at %d! Sent vs recved: (starting from %d)\n" , x, from);
         for (int i=0; i<32; i++) {
             if (i+from<num_bytes) printf("%02X ", sendbuf[from+i]);
@@ -195,12 +190,13 @@ static int spi_test(spi_device_handle_t handle, int num_bytes) {
             if (i+from<num_bytes) printf("%02X ", recvbuf[from+i]);
         }
         printf("\n");
+//        TEST_ASSERT(0);
     }
 
-    if (success) printf("Success!\n");
+    printf("Success!\n");
+
     free(sendbuf);
     free(recvbuf);
-    return success;
 }
 
 static void destroy_spi_bus(spi_device_handle_t handle) {
@@ -214,31 +210,26 @@ static void destroy_spi_bus(spi_device_handle_t handle) {
 
 #define TEST_LEN 111
 
-TEST_CASE("SPI Master test", "[spi]")
+TEST_CASE("SPI Master test", "[spi][ignore]")
 {
-    bool success = true;
     printf("Testing bus at 80KHz\n");
     spi_device_handle_t handle=setup_spi_bus(80000, true);
-    success &= spi_test(handle, 16); //small
-    success &= spi_test(handle, 21); //small, unaligned
-    success &= spi_test(handle, 36); //aligned
-    success &= spi_test(handle, 128); //aligned
-    success &= spi_test(handle, 129); //unaligned
-    success &= spi_test(handle, 4096-2); //multiple descs, edge case 1
-    success &= spi_test(handle, 4096-1); //multiple descs, edge case 2
-    success &= spi_test(handle, 4096*3); //multiple descs
+    spi_test(handle, 16); //small
+    spi_test(handle, 21); //small, unaligned
+    spi_test(handle, 36); //aligned
+    spi_test(handle, 128); //aligned
+    spi_test(handle, 129); //unaligned
+    spi_test(handle, 4096-2); //multiple descs, edge case 1
+    spi_test(handle, 4096-1); //multiple descs, edge case 2
+    spi_test(handle, 4096*3); //multiple descs
 
     destroy_spi_bus(handle);
 
     printf("Testing bus at 80KHz, non-DMA\n");
     handle=setup_spi_bus(80000, false);
-    success &= spi_test(handle, 4); //aligned
-    success &= spi_test(handle, 16); //small
-    success &= spi_test(handle, 21); //small, unaligned
-    success &= spi_test(handle, 32); //small
-    success &= spi_test(handle, 47); //small, unaligned
-    success &= spi_test(handle, 63); //small
-    success &= spi_test(handle, 64); //small, unaligned
+    spi_test(handle, 4); //aligned
+    spi_test(handle, 16); //small
+    spi_test(handle, 21); //small, unaligned
 
     destroy_spi_bus(handle);
 
@@ -246,23 +237,21 @@ TEST_CASE("SPI Master test", "[spi]")
     printf("Testing bus at 26MHz\n");
     handle=setup_spi_bus(20000000, true);
 
-    success &= spi_test(handle, 128); //DMA, aligned
-    success &= spi_test(handle, 4096*3); //DMA, multiple descs
+    spi_test(handle, 128); //DMA, aligned
+    spi_test(handle, 4096*3); //DMA, multiple descs
     destroy_spi_bus(handle);
 
     printf("Testing bus at 900KHz\n");
     handle=setup_spi_bus(9000000, true);
 
-    success &= spi_test(handle, 128); //DMA, aligned
-    success &= spi_test(handle, 4096*3); //DMA, multiple descs
+    spi_test(handle, 128); //DMA, aligned
+    spi_test(handle, 4096*3); //DMA, multiple descs
     destroy_spi_bus(handle);
-    TEST_ASSERT(success);
 }
 
 
-TEST_CASE("SPI Master test, interaction of multiple devs", "[spi]") {
+TEST_CASE("SPI Master test, interaction of multiple devs", "[spi][ignore]") {
     esp_err_t ret;
-    bool success = true;
     spi_device_interface_config_t devcfg={
         .command_bits=0,
         .address_bits=0,
@@ -278,29 +267,28 @@ TEST_CASE("SPI Master test, interaction of multiple devs", "[spi]") {
     spi_bus_add_device(HSPI_HOST, &devcfg, &handle2);
 
     printf("Sending to dev 1\n");
-    success &= spi_test(handle1, 7);
+    spi_test(handle1, 7);
     printf("Sending to dev 1\n");
-    success &= spi_test(handle1, 15);
+    spi_test(handle1, 15);
     printf("Sending to dev 2\n");
-    success &= spi_test(handle2, 15);
+    spi_test(handle2, 15);
     printf("Sending to dev 1\n");
-    success &= spi_test(handle1, 32);
+    spi_test(handle1, 32);
     printf("Sending to dev 2\n");
-    success &= spi_test(handle2, 32);
+    spi_test(handle2, 32);
     printf("Sending to dev 1\n");
-    success &= spi_test(handle1, 63);
+    spi_test(handle1, 63);
     printf("Sending to dev 2\n");
-    success &= spi_test(handle2, 63);
+    spi_test(handle2, 63);
     printf("Sending to dev 1\n");
-    success &= spi_test(handle1, 5000);
+    spi_test(handle1, 5000);
     printf("Sending to dev 2\n");
-    success &= spi_test(handle2, 5000);
+    spi_test(handle2, 5000);
 
 
     ret=spi_bus_remove_device(handle2);
     TEST_ASSERT(ret==ESP_OK);
     destroy_spi_bus(handle1);
-    TEST_ASSERT(success);
 }
 
 TEST_CASE("spi bus setting with different pin configs", "[spi]")
@@ -507,20 +495,10 @@ TEST_CASE("SPI Master no response when switch from host1 (HSPI) to host2 (VSPI)"
     TEST_ASSERT(spi_bus_free(host) == ESP_OK);
 }
 
-DRAM_ATTR  static uint32_t data_dram[80]={0};
+IRAM_ATTR  static uint32_t data_iram[320];
+DRAM_ATTR  static uint32_t data_dram[320]={0};
 //force to place in code area.
-static const uint8_t data_drom[320+3] = {
-0xD8, 0xD1, 0x0A, 0xB8, 0xCE, 0x67, 0x1B, 0x11, 0x17, 0xA0, 0xDA, 0x89, 0x55, 0xC1, 0x40, 0x0F, 0x55, 0xEB, 0xF7, 0xEC, 0xF0, 0x3C, 0x0F, 0x4D, 0x2B, 0x9E, 0xBF, 0xCD, 0x57, 0x2C, 0x48, 0x1A,
-0x8B, 0x47, 0xC5, 0x01, 0x0C, 0x05, 0x80, 0x30, 0xF4, 0xEA, 0xE5, 0x92, 0x56, 0x97, 0x98, 0x78, 0x21, 0x34, 0xA1, 0xBC, 0xAE, 0x93, 0x7E, 0x96, 0x08, 0xE6, 0x54, 0x6A, 0x6C, 0x67, 0xCF, 0x58,
-0xEE, 0x15, 0xA8, 0xB6, 0x32, 0x8C, 0x85, 0xF7, 0xE9, 0x88, 0x5E, 0xB1, 0x76, 0xE4, 0xB2, 0xC7, 0x0F, 0x57, 0x51, 0x7A, 0x2F, 0xAB, 0x12, 0xC3, 0x37, 0x99, 0x4E, 0x67, 0x75, 0x28, 0xE4, 0x1D,
-0xF8, 0xBA, 0x22, 0xCB, 0xA1, 0x18, 0x4C, 0xAB, 0x5F, 0xC9, 0xF3, 0xA2, 0x39, 0x92, 0x44, 0xE6, 0x7B, 0xE3, 0xD0, 0x16, 0xC5, 0xC2, 0xCB, 0xD9, 0xC0, 0x7F, 0x06, 0xBF, 0x3E, 0xCE, 0xE1, 0x26,
-0xD5, 0x3C, 0xAD, 0x0E, 0xC1, 0xC7, 0x7D, 0x0D, 0x56, 0x85, 0x6F, 0x32, 0xC8, 0x63, 0x8D, 0x12, 0xAB, 0x1E, 0x81, 0x7B, 0xF4, 0xF1, 0xA9, 0xAF, 0xD9, 0x74, 0x60, 0x05, 0x3D, 0xCC, 0x0C, 0x34,
-0x11, 0x44, 0xAE, 0x2A, 0x13, 0x2F, 0x04, 0xC3, 0x59, 0xF0, 0x54, 0x07, 0xBA, 0x26, 0xD9, 0xFB, 0x80, 0x95, 0xC0, 0x14, 0xFA, 0x27, 0xEF, 0xD3, 0x58, 0xB8, 0xE4, 0xA2, 0xE3, 0x5E, 0x94, 0xB3,
-0xCD, 0x2C, 0x4F, 0xAC, 0x3B, 0xD1, 0xCA, 0xBE, 0x61, 0x71, 0x7B, 0x62, 0xEB, 0xF0, 0xFC, 0xEF, 0x22, 0xB7, 0x3F, 0x56, 0x65, 0x19, 0x61, 0x73, 0x1A, 0x4D, 0xE4, 0x23, 0xE5, 0x3A, 0x91, 0x5C,
-0xE6, 0x1B, 0x5F, 0x0E, 0x10, 0x94, 0x7C, 0x9F, 0xCF, 0x75, 0xB3, 0xEB, 0x42, 0x4C, 0xCF, 0xFE, 0xAF, 0x68, 0x62, 0x3F, 0x9A, 0x3C, 0x81, 0x3E, 0x7A, 0x45, 0x92, 0x79, 0x91, 0x4F, 0xFF, 0xDE,
-0x25, 0x18, 0x33, 0xB9, 0xA9, 0x3A, 0x3F, 0x1F, 0x4F, 0x4B, 0x5C, 0x71, 0x82, 0x75, 0xB0, 0x1F, 0xE9, 0x98, 0xA3, 0xE2, 0x65, 0xBB, 0xCA, 0x4F, 0xB7, 0x1D, 0x23, 0x43, 0x16, 0x73, 0xBD, 0x83,
-0x70, 0x22, 0x7D, 0x0A, 0x6D, 0xD3, 0x77, 0x73, 0xD0, 0xF4, 0x06, 0xB2, 0x19, 0x8C, 0xFF, 0x58, 0xE4, 0xDB, 0xE9, 0xEC, 0x89, 0x6A, 0xF4, 0x0E, 0x67, 0x12, 0xEC, 0x11, 0xD2, 0x1F, 0x8D, 0xD7,
-};
+static const uint32_t data_drom[320] = {0};
 
 #if 1 //HSPI
 #define PIN_NUM_MISO HSPI_IOMUX_PIN_NUM_MISO
@@ -540,94 +518,77 @@ static const uint8_t data_drom[320+3] = {
 
 TEST_CASE("SPI Master DMA test, TX and RX in different regions", "[spi]")
 {
-#ifdef CONFIG_SPIRAM_SUPPORT
-    //test psram if enabled
-    ESP_LOGI(TAG, "testing PSRAM...");
-    uint32_t* data_malloc = (uint32_t*)heap_caps_malloc(324, MALLOC_CAP_SPIRAM);
-    TEST_ASSERT(esp_ptr_external_ram(data_malloc));
-#else
-    uint32_t* data_malloc = (uint32_t*)heap_caps_malloc(324, MALLOC_CAP_DMA);
-    TEST_ASSERT(esp_ptr_in_dram(data_malloc));
-#endif
-    TEST_ASSERT(data_malloc != NULL);
-
-    //refer to soc_memory_layout.c
-    uint32_t* data_iram = (uint32_t*)heap_caps_malloc(324, MALLOC_CAP_EXEC);
-    TEST_ASSERT(data_iram != NULL);
-
-    ESP_LOGI(TAG, "iram: %p, dram: %p", data_iram, data_dram);
-    ESP_LOGI(TAG, "drom: %p, malloc: %p", data_drom, data_malloc);
-    TEST_ASSERT(esp_ptr_in_dram(data_dram));
-    TEST_ASSERT(esp_ptr_in_iram(data_iram));
-    TEST_ASSERT(esp_ptr_in_drom(data_drom));
-
-    srand(52);
-    for (int i = 0; i < 320/4; i++) {
-        data_iram[i] = rand();
-        data_dram[i] = rand();
-        data_malloc[i] = rand();
-    }
+    uint32_t data_rxdram[320];
 
     esp_err_t ret;
     spi_device_handle_t spi;
-    spi_bus_config_t buscfg=SPI_BUS_TEST_DEFAULT_CONFIG();
-    buscfg.miso_io_num = PIN_NUM_MOSI;
-    spi_device_interface_config_t devcfg=SPI_DEVICE_TEST_DEFAULT_CONFIG();
-
+    spi_bus_config_t buscfg={
+        .miso_io_num=PIN_NUM_MISO,
+        .mosi_io_num=PIN_NUM_MOSI,
+        .sclk_io_num=PIN_NUM_CLK,
+        .quadwp_io_num=-1,
+        .quadhd_io_num=-1
+    };
+    spi_device_interface_config_t devcfg={
+        .clock_speed_hz=10000000,               //Clock out at 10 MHz
+        .mode=0,                                //SPI mode 0
+        .spics_io_num=PIN_NUM_CS,               //CS pin
+        .queue_size=7,                          //We want to be able to queue 7 transactions at a time
+        .pre_cb=NULL,  //Specify pre-transfer callback to handle D/C line
+    };
     //Initialize the SPI bus
     ret=spi_bus_initialize(HSPI_HOST, &buscfg, 1);
     TEST_ASSERT(ret==ESP_OK);
     //Attach the LCD to the SPI bus
     ret=spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
     TEST_ASSERT(ret==ESP_OK);
-    //connect MOSI to two devices breaks the output, fix it.
-    gpio_output_sel(buscfg.mosi_io_num, FUNC_GPIO, HSPID_OUT_IDX);
 
-#define TEST_REGION_SIZE 5
-    static spi_transaction_t trans[TEST_REGION_SIZE];
+    static spi_transaction_t trans[6];
     int x;
 
+    printf("iram: %p, dram: %p, drom: %p\n", data_iram, data_dram, data_drom);
 
-    memset(trans, 0, sizeof(trans));
+    memset(trans, 0, 6*sizeof(spi_transaction_t));
 
     trans[0].length = 320*8,
     trans[0].tx_buffer = data_iram;
-    trans[0].rx_buffer = data_malloc+1;
+    trans[0].rx_buffer = data_rxdram;
 
     trans[1].length = 320*8,
     trans[1].tx_buffer = data_dram;
-    trans[1].rx_buffer = data_iram;
+    trans[1].rx_buffer = data_rxdram;
 
     trans[2].length = 320*8,
-    trans[2].tx_buffer = data_malloc+2;
-    trans[2].rx_buffer = data_dram;
+    trans[2].tx_buffer = data_drom;
+    trans[2].rx_buffer = data_rxdram;
 
     trans[3].length = 320*8,
     trans[3].tx_buffer = data_drom;
     trans[3].rx_buffer = data_iram;
 
-    trans[4].length = 4*8,
-    trans[4].flags = SPI_TRANS_USE_RXDATA | SPI_TRANS_USE_TXDATA;
-    uint32_t* ptr = (uint32_t*)trans[4].rx_data;
-    *ptr = 0x54545454;
-    ptr = (uint32_t*)trans[4].tx_data;
-    *ptr = 0xbc124960;
+    trans[4].length = 320*8,
+    trans[4].rxlength = 8*4;
+    trans[4].tx_buffer = data_drom;
+    trans[4].flags = SPI_TRANS_USE_RXDATA;
+
+    trans[5].length = 8*4;
+    trans[5].flags = SPI_TRANS_USE_RXDATA | SPI_TRANS_USE_TXDATA;
 
     //Queue all transactions.
-    for (x=0; x<TEST_REGION_SIZE; x++) {
-        ESP_LOGI(TAG, "transmitting %d...", x);
-        ret=spi_device_transmit(spi,&trans[x]);
+    for (x=0; x<6; x++) {
+        ret=spi_device_queue_trans(spi,&trans[x], portMAX_DELAY);
         TEST_ASSERT(ret==ESP_OK);
-        if (trans[x].flags & SPI_TRANS_USE_RXDATA) {
-            TEST_ASSERT_EQUAL_HEX8_ARRAY(trans[x].tx_data, trans[x].rx_data, 4);
-        } else {
-            TEST_ASSERT_EQUAL_HEX32_ARRAY(trans[x].tx_buffer, trans[x].rx_buffer, trans[x].length / 8 /4);
-        }
     }
+
+    for (x=0; x<6; x++) {
+        spi_transaction_t* ptr;
+        ret=spi_device_get_trans_result(spi,&ptr, portMAX_DELAY);
+        TEST_ASSERT(ret==ESP_OK);
+        TEST_ASSERT(ptr = trans+x);
+    }
+
     TEST_ASSERT(spi_bus_remove_device(spi) == ESP_OK);
     TEST_ASSERT(spi_bus_free(HSPI_HOST) == ESP_OK);
-    free(data_malloc);
-    free(data_iram);
 }
 
 //this part tests 3 DMA issues in master mode, full-duplex in IDF2.1
@@ -707,22 +668,8 @@ TEST_CASE("SPI Master DMA test: length, start, not aligned", "[spi]")
 
 static const char MASTER_TAG[] = "test_master";
 static const char SLAVE_TAG[] = "test_slave";
-DRAM_ATTR static uint8_t master_send[] = {
-    0x93, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0xaa, 0xcc, 0xff, 0xee, 0x55, 0x77, 0x88, 0x43,
-    0x74,
-    0x93, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0xaa, 0xcc, 0xff, 0xee, 0x55, 0x77, 0x88, 0x43,
-    0x74,
-    0x93, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0xaa, 0xcc, 0xff, 0xee, 0x55, 0x77, 0x88, 0x43,
-    0x74,
-    };
-DRAM_ATTR static uint8_t slave_send[] = {
-    0xaa, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10, 0x13, 0x57, 0x9b, 0xdf, 0x24, 0x68, 0xac, 0xe0,
-    0xda,
-    0xaa, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10, 0x13, 0x57, 0x9b, 0xdf, 0x24, 0x68, 0xac, 0xe0,
-    0xda,
-    0xaa, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10, 0x13, 0x57, 0x9b, 0xdf, 0x24, 0x68, 0xac, 0xe0,
-    0xda,
-    };
+DRAM_ATTR static uint8_t master_send[] = {0x93, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0, 0xaa, 0xcc, 0xff, 0xee, 0x55, 0x77, 0x88, 0x43};
+DRAM_ATTR static uint8_t slave_send[] = { 0xaa, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10, 0x13, 0x57, 0x9b, 0xdf, 0x24, 0x68, 0xac, 0xe0 };
 
 
 static void master_deinit(spi_device_handle_t spi)
@@ -1054,8 +1001,6 @@ esp_err_t check_data(spi_transaction_t *t, spi_dup_t dup, slave_rxdata_t *slave_
     return ESP_OK;
 }
 
-int test_len[] = {1, 3, 5, 7, 9, 11, 33, 64};
-
 static void timing_init_transactions(spi_dup_t dup, timing_context_t* context)
 {
     spi_transaction_t* trans = context->master_trans;
@@ -1064,7 +1009,7 @@ static void timing_init_transactions(spi_dup_t dup, timing_context_t* context)
         for (int i = 0; i < 8; i++ ) {
             trans[i] = (spi_transaction_t) {
                 .flags = 0,
-                .rxlength = 8*test_len[i],
+                .rxlength = 8*(i*2+1),
                 .rx_buffer = rx_buf_ptr,
             };
             rx_buf_ptr += ((context->master_trans[i].rxlength + 31)/8)&(~3);
@@ -1073,7 +1018,7 @@ static void timing_init_transactions(spi_dup_t dup, timing_context_t* context)
         for (int i = 0; i < 8; i++ ) {
             trans[i] = (spi_transaction_t) {
                 .flags = 0,
-                .length = 8*test_len[i],
+                .length = 8*(i*2+1),
                 .tx_buffer = master_send+i,
             };
         }
@@ -1081,7 +1026,7 @@ static void timing_init_transactions(spi_dup_t dup, timing_context_t* context)
         for (int i = 0; i < 8; i++ ) {
             trans[i] = (spi_transaction_t) {
                 .flags = 0,
-                .length = 8*test_len[i],
+                .length = 8*(i*2+1),
                 .tx_buffer = master_send+i,
                 .rx_buffer = rx_buf_ptr,
             };
@@ -1092,7 +1037,7 @@ static void timing_init_transactions(spi_dup_t dup, timing_context_t* context)
     for (int i = 0; i < 8; i ++) {
         context->slave_trans[i] = (slave_txdata_t) {
             .start = slave_send + 4*(i%3),
-            .len = 512,
+            .len = 256,
         };
     }
 }
@@ -1123,7 +1068,7 @@ typedef struct {
 #define ESP_SPI_SLAVE_MAX_FREQ_SYNC SPI_MASTER_FREQ_40M
 
 
-static test_timing_config_t timing_master_conf_t[] = {
+static test_timing_config_t timing_master_conf_t[] = {/**/
     { .cfg_name = "FULL_DUP, MASTER IOMUX",
       .freq_limit = SPI_MASTER_FREQ_13M,
       .dup = FULL_DUPLEX,
@@ -1359,30 +1304,12 @@ static void sorted_array_insert(uint32_t* array, int* size, uint32_t item)
 
 #define TEST_TIMES  11
 
-static IRAM_ATTR void spi_transmit_measure(spi_device_handle_t spi, spi_transaction_t* trans, uint32_t* t_flight)
-{
-    RECORD_TIME_PREPARE();
-    spi_device_transmit(spi, trans); // prime the flash cache
-    RECORD_TIME_START();
-    spi_device_transmit(spi, trans);
-    RECORD_TIME_END(t_flight);
-}
-
-static IRAM_ATTR void spi_transmit_polling_measure(spi_device_handle_t spi, spi_transaction_t* trans, uint32_t* t_flight)
-{
-    RECORD_TIME_PREPARE();
-    spi_device_polling_transmit(spi, trans); // prime the flash cache
-    RECORD_TIME_START();
-    spi_device_polling_transmit(spi, trans);
-    RECORD_TIME_END(t_flight);
-}
-
 TEST_CASE("spi_speed","[spi]")
 {
+    RECORD_TIME_PREPARE();
     uint32_t t_flight;
     //to get rid of the influence of randomly interrupts, we measured the performance by median value
     uint32_t t_flight_sorted[TEST_TIMES];
-    esp_err_t ret;
     int t_flight_num = 0;
 
     spi_device_handle_t spi;
@@ -1395,204 +1322,41 @@ TEST_CASE("spi_speed","[spi]")
     //first work with DMA
     speed_setup(&spi, use_dma);
 
+    //first time introduces a device switch, which costs more time. we skip this
+    spi_device_transmit(spi, &trans);
+
     //record flight time by isr, with DMA
     t_flight_num = 0;
     for (int i = 0; i < TEST_TIMES; i++) {
-        spi_transmit_measure(spi, &trans, &t_flight);
+        spi_device_transmit(spi, &trans); // prime the flash cache
+        RECORD_TIME_START();
+        spi_device_transmit(spi, &trans);
+        RECORD_TIME_END(&t_flight);
         sorted_array_insert(t_flight_sorted, &t_flight_num, t_flight);
-    }
-    for (int i = 0; i < TEST_TIMES; i++) {
-        ESP_LOGI(TAG, "%d", t_flight_sorted[i]);
     }
     TEST_PERFORMANCE_LESS_THAN(SPI_PER_TRANS_NO_POLLING, "%d us", t_flight_sorted[(TEST_TIMES+1)/2]);
-
-    //acquire the bus to send polling transactions faster
-    ret = spi_device_acquire_bus(spi, portMAX_DELAY);
-    TEST_ESP_OK(ret);
-
-    //record flight time by polling and with DMA
-    t_flight_num = 0;
-    for (int i = 0; i < TEST_TIMES; i++) {
-        spi_transmit_polling_measure(spi, &trans, &t_flight);
-        sorted_array_insert(t_flight_sorted, &t_flight_num, t_flight);
-    }
     for (int i = 0; i < TEST_TIMES; i++) {
         ESP_LOGI(TAG, "%d", t_flight_sorted[i]);
     }
-    TEST_PERFORMANCE_LESS_THAN(SPI_PER_TRANS_POLLING, "%d us", t_flight_sorted[(TEST_TIMES+1)/2]);
-
-    //release the bus
-    spi_device_release_bus(spi);
 
     speed_deinit(spi);
     speed_setup(&spi, !use_dma);
 
+    //first time introduces a device switch, which costs more time. we skip this
+    spi_device_transmit(spi, &trans);
+
     //record flight time by isr, without DMA
     t_flight_num = 0;
     for (int i = 0; i < TEST_TIMES; i++) {
-        spi_transmit_measure(spi, &trans, &t_flight);
+        RECORD_TIME_START();
+        spi_device_transmit(spi, &trans);
+        RECORD_TIME_END(&t_flight);
         sorted_array_insert(t_flight_sorted, &t_flight_num, t_flight);
-    }
-    for (int i = 0; i < TEST_TIMES; i++) {
-        ESP_LOGI(TAG, "%d", t_flight_sorted[i]);
     }
     TEST_PERFORMANCE_LESS_THAN( SPI_PER_TRANS_NO_POLLING_NO_DMA, "%d us", t_flight_sorted[(TEST_TIMES+1)/2]);
-
-    //acquire the bus to send polling transactions faster
-    ret = spi_device_acquire_bus(spi, portMAX_DELAY);
-    TEST_ESP_OK(ret);
-    //record flight time by polling, without DMA
-    t_flight_num = 0;
-    for (int i = 0; i < TEST_TIMES; i++) {
-        spi_transmit_polling_measure(spi, &trans, &t_flight);
-        sorted_array_insert(t_flight_sorted, &t_flight_num, t_flight);
-    }
     for (int i = 0; i < TEST_TIMES; i++) {
         ESP_LOGI(TAG, "%d", t_flight_sorted[i]);
     }
-    TEST_PERFORMANCE_LESS_THAN(SPI_PER_TRANS_POLLING_NO_DMA, "%d us", t_flight_sorted[(TEST_TIMES+1)/2]);
-
-    //release the bus
-    spi_device_release_bus(spi);
     speed_deinit(spi);
 }
 
-typedef struct {
-    spi_device_handle_t handle;
-    bool finished;
-} task_context_t;
-
-void spi_task1(void* arg)
-{
-    //task1 send 50 polling transactions, acquire the bus and send another 50
-    int count=0;
-    spi_transaction_t t = {
-        .flags = SPI_TRANS_USE_TXDATA,
-        .tx_data = { 0x80, 0x12, 0x34, 0x56 },
-        .length = 4*8,
-    };
-    spi_device_handle_t handle = ((task_context_t*)arg)->handle;
-    for( int j = 0; j < 50; j ++ ) {
-        TEST_ESP_OK(spi_device_polling_transmit( handle, &t ));
-        ESP_LOGI( TAG, "task1:%d", count++ );
-    }
-    TEST_ESP_OK(spi_device_acquire_bus( handle, portMAX_DELAY ));
-    for( int j = 0; j < 50; j ++ ) {
-        TEST_ESP_OK(spi_device_polling_transmit( handle, &t ));
-        ESP_LOGI( TAG, "task1:%d", count++ );
-    }
-    spi_device_release_bus(handle);
-    ESP_LOGI(TAG, "task1 terminates");
-    ((task_context_t*)arg)->finished = true;
-    vTaskDelete(NULL);
-}
-
-void spi_task2(void* arg)
-{
-    int count=0;
-    //task2 acquire the bus, send 50 polling transactions and then 50 non-polling
-    spi_transaction_t t = {
-        .flags = SPI_TRANS_USE_TXDATA,
-        .tx_data = { 0x80, 0x12, 0x34, 0x56 },
-        .length = 4*8,
-    };
-    spi_transaction_t *ret_t;
-    spi_device_handle_t handle = ((task_context_t*)arg)->handle;
-    TEST_ESP_OK(spi_device_acquire_bus( handle, portMAX_DELAY ));
-
-    for (int i = 0; i < 50; i ++) {
-        TEST_ESP_OK(spi_device_polling_transmit(handle, &t));
-        ESP_LOGI( TAG, "task2: %d", count++ );
-    }
-
-    for( int j = 0; j < 50; j ++ ) {
-        TEST_ESP_OK(spi_device_queue_trans( handle, &t, portMAX_DELAY ));
-    }
-    for( int j = 0; j < 50; j ++ ) {
-        TEST_ESP_OK(spi_device_get_trans_result(handle, &ret_t, portMAX_DELAY));
-        assert(ret_t == &t);
-        ESP_LOGI( TAG, "task2: %d", count++ );
-    }
-    spi_device_release_bus(handle);
-    vTaskDelay(1);
-    ESP_LOGI(TAG, "task2 terminates");
-    ((task_context_t*)arg)->finished = true;
-    vTaskDelete(NULL);
-}
-
-void spi_task3(void* arg)
-{
-    //task3 send 30 polling transactions, acquire the bus, send 20 polling transactions and then 50 non-polling
-    int count=0;
-    spi_transaction_t t = {
-        .flags = SPI_TRANS_USE_TXDATA,
-        .tx_data = { 0x80, 0x12, 0x34, 0x56 },
-        .length = 4*8,
-    };
-    spi_transaction_t *ret_t;
-    spi_device_handle_t handle = ((task_context_t*)arg)->handle;
-
-    for (int i = 0; i < 30; i ++) {
-        TEST_ESP_OK(spi_device_polling_transmit(handle, &t));
-        ESP_LOGI( TAG, "task3: %d", count++ );
-    }
-
-    TEST_ESP_OK(spi_device_acquire_bus( handle, portMAX_DELAY ));
-    for (int i = 0; i < 20; i ++) {
-        TEST_ESP_OK(spi_device_polling_transmit(handle, &t));
-        ESP_LOGI( TAG, "task3: %d", count++ );
-    }
-
-    for (int j = 0; j < 50; j++) {
-        TEST_ESP_OK(spi_device_queue_trans(handle, &t, portMAX_DELAY));
-    }
-    for (int j = 0; j < 50; j++) {
-        TEST_ESP_OK(spi_device_get_trans_result(handle, &ret_t, portMAX_DELAY));
-        assert(ret_t == &t);
-        ESP_LOGI(TAG, "task3: %d", count++);
-    }
-    spi_device_release_bus(handle);
-
-    ESP_LOGI(TAG, "task3 terminates");
-    ((task_context_t*)arg)->finished = true;
-    vTaskDelete(NULL);
-}
-
-TEST_CASE("spi poll tasks","[spi]")
-{
-    task_context_t context1={};
-    task_context_t context2={};
-    task_context_t context3={};
-    TaskHandle_t task1, task2, task3;
-    esp_err_t ret;
-    spi_bus_config_t buscfg=SPI_BUS_TEST_DEFAULT_CONFIG();
-    spi_device_interface_config_t devcfg=SPI_DEVICE_TEST_DEFAULT_CONFIG();
-    devcfg.queue_size = 100;
-
-    //Initialize the SPI bus and 3 devices
-    ret=spi_bus_initialize(HSPI_HOST, &buscfg, 1);
-    TEST_ASSERT(ret==ESP_OK);
-    ret=spi_bus_add_device(HSPI_HOST, &devcfg, &context1.handle);
-    TEST_ASSERT(ret==ESP_OK);
-    ret=spi_bus_add_device(HSPI_HOST, &devcfg, &context2.handle);
-    TEST_ASSERT(ret==ESP_OK);
-    ret=spi_bus_add_device(HSPI_HOST, &devcfg, &context3.handle);
-    TEST_ASSERT(ret==ESP_OK);
-
-    xTaskCreate( spi_task1, "task1", 2048, &context1, 0, &task1 );
-    xTaskCreate( spi_task2, "task2", 2048, &context2, 0, &task2 );
-    xTaskCreate( spi_task3, "task3", 2048, &context3, 0, &task3 );
-
-    for(;;){
-        vTaskDelay(10);
-        if (context1.finished && context2.finished && context3.finished) break;
-    }
-
-    TEST_ESP_OK( spi_bus_remove_device(context1.handle) );
-    TEST_ESP_OK( spi_bus_remove_device(context2.handle) );
-    TEST_ESP_OK( spi_bus_remove_device(context3.handle) );
-    TEST_ESP_OK( spi_bus_free(HSPI_HOST) );
-}
-
-
-//TODO: add a case when a non-polling transaction happened in the bus-acquiring time and then release the bus then queue a new trans

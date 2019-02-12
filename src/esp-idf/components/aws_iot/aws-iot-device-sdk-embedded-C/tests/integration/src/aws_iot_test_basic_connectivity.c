@@ -20,9 +20,8 @@
 
 #include "aws_iot_test_integration_common.h"
 
-#define BUFFER_SIZE 100
-
 static bool terminate_yield_thread;
+static bool isPubThreadFinished;
 
 static unsigned int countArray[PUBLISH_COUNT];
 static unsigned int rxMsgBufferTooBigCounter;
@@ -37,29 +36,26 @@ typedef struct ThreadData {
 
 static void aws_iot_mqtt_tests_message_aggregator(AWS_IoT_Client *pClient, char *topicName,
 							  uint16_t topicNameLen, IoT_Publish_Message_Params *params, void *pData) {
-	char tempBuf[BUFFER_SIZE];
-	char *next_token;
+	char tempBuf[30];
 	char *temp = NULL;
 	unsigned int tempRow = 0, tempCol = 0;
 	IoT_Error_t rc;
 
-	if(params->payloadLen <= BUFFER_SIZE) {
+	if(params->payloadLen <= 30) {
 		snprintf(tempBuf, params->payloadLen, params->payload);
 		printf("\nMsg received : %s", tempBuf);
-		temp = strtok_r(tempBuf, " ,:", &next_token);
-		temp = strtok_r(NULL, " ,:", &next_token);
+		temp = strtok(tempBuf, " ,:");
+		temp = strtok(NULL, " ,:");
 		if(NULL == temp) {
 			return;
 		}
 		tempRow = atoi(temp);
-		temp = strtok_r(NULL, " ,:", &next_token);
-		temp = strtok_r(NULL, " ,:", &next_token);
+		temp = strtok(NULL, " ,:");
+		temp = strtok(NULL, " ,:");
+		tempCol = atoi(temp);
 		if(NULL == temp) {
 			return;
 		}
-		
-		tempCol = atoi(temp);
-
 		if(tempCol > 0 && tempCol <= PUBLISH_COUNT) {
 			countArray[tempCol - 1]++;
 		} else {
@@ -109,8 +105,6 @@ static void *aws_iot_mqtt_tests_yield_thread_runner(void *ptr) {
 			IOT_DEBUG("\nYield Returned : %d ", rc);
 		}
 	}
-
-	return NULL;
 }
 
 static void *aws_iot_mqtt_tests_publish_thread_runner(void *ptr) {
@@ -123,7 +117,7 @@ static void *aws_iot_mqtt_tests_publish_thread_runner(void *ptr) {
 	int threadId = threadData->threadId;
 
 	for(i = 0; i < PUBLISH_COUNT; i++) {
-		snprintf(cPayload, 100, "%s_Thread : %d, Msg : %d", AWS_IOT_MY_THING_NAME, threadId, i + 1);
+		snprintf(cPayload, 100, "Thread : %d, Msg : %d", threadId, i + 1);
 		printf("\nMsg being published: %s \n", cPayload);
 		params.payload = (void *) cPayload;
 		params.payloadLen = strlen(cPayload) + 1;
@@ -146,6 +140,7 @@ static void *aws_iot_mqtt_tests_publish_thread_runner(void *ptr) {
 			}
 		}
 	}
+	isPubThreadFinished = true;
 	return 0;
 }
 
@@ -172,6 +167,7 @@ int aws_iot_mqtt_tests_basic_connectivity() {
 	AWS_IoT_Client client;
 
 	terminate_yield_thread = false;
+	isPubThreadFinished = false;
 
 	rxMsgBufferTooBigCounter = 0;
 	rxUnexpectedNumberCounter = 0;
@@ -194,16 +190,12 @@ int aws_iot_mqtt_tests_basic_connectivity() {
 
 		IOT_DEBUG("Root CA Path : %s\n clientCRT : %s\n clientKey : %s\n", root_CA, clientCRT, clientKey);
 		initParams.pHostURL = AWS_IOT_MQTT_HOST;
-		initParams.port = AWS_IOT_MQTT_PORT;
+		initParams.port = 8883;
 		initParams.pRootCALocation = root_CA;
 		initParams.pDeviceCertLocation = clientCRT;
 		initParams.pDevicePrivateKeyLocation = clientKey;
 		initParams.mqttCommandTimeout_ms = 10000;
 		initParams.tlsHandshakeTimeout_ms = 10000;
-		initParams.mqttPacketTimeout_ms = 5000;
-		initParams.isSSLHostnameVerify = true;
-		initParams.disconnectHandlerData = NULL;
-		initParams.isBlockOnThreadLockEnabled = true;
 		initParams.disconnectHandler = aws_iot_mqtt_tests_disconnect_callback_handler;
 		initParams.enableAutoReconnect = false;
 		aws_iot_mqtt_init(&client, &initParams);
@@ -219,7 +211,7 @@ int aws_iot_mqtt_tests_basic_connectivity() {
 		connectParams.pPassword = NULL;
 		connectParams.passwordLen = 0;
 
-		gettimeofday(&start, NULL);
+		gettimeofday(&connectTime, NULL);
 		rc = aws_iot_mqtt_connect(&client, &connectParams);
 		gettimeofday(&end, NULL);
 		timersub(&end, &start, &connectTime);
@@ -243,12 +235,15 @@ int aws_iot_mqtt_tests_basic_connectivity() {
 	threadData.threadId = 1;
 	pubThreadReturn = pthread_create(&publish_thread, NULL, aws_iot_mqtt_tests_publish_thread_runner, &threadData);
 
-	pthread_join(publish_thread, NULL);
+	do {
+		sleep(1); //Let all threads run
+	} while(!isPubThreadFinished);
+
 	// This sleep is to ensure that the last publish message has enough time to be received by us
 	sleep(1);
 
 	terminate_yield_thread = true;
-	pthread_join(yield_thread, NULL);
+	sleep(1);
 
 	/* Not using pthread_join because all threads should have terminated gracefully at this point. If they haven't,
 	 * which should not be possible, something below will fail. */

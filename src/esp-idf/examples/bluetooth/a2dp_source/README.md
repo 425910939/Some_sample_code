@@ -3,13 +3,13 @@ ESP-IDF A2DP-SOURCE demo
 
 Demo of A2DP audio source role
 
-This is the demo of using Advanced Audio Distribution Profile APIs to transmit audio stream. Application can take advantage of this example to implement portable audio players or microphones to transmit audio stream to A2DP sink devices.
+This is the demo of using Advanced Audio Distribution Profile APIs to transmit audio stream. Applications can take advantage of this example to implement portable audio players or microphones to transmit audio stream to A2DP sink devices.
 
 ## How to use this example
 
 ### Hardware Required
 
-This example is able to run on any commonly available ESP32 development board. And is supposed to connect to A2DP sink example in ESP-IDF.
+This example is able to run on any commonly available ESP32 development board, and is supposed to connect to A2DP sink example in ESP-IDF.
 
 ### Configure the project
 
@@ -33,7 +33,7 @@ make -j4 flash monitor
 
 ## Example Output
 
-For the first step, this example performs device discovery to search for a target device(A2DP sink) whose device name is "ESP_SPEAKER" and whose "Rendering" bit of its Service Class field is set in its Class of Device. If a candidate target is found, the local device will initiate connection with it.
+For the first step, this example performs device discovery to search for a target device (A2DP sink) whose device name is "ESP_SPEAKER" and whose "Rendering" bit of its Service Class field is set in its Class of Device. If a candidate target is found, the local device will initiate connection with it.
 
 After connection with A2DP sink is established, the example performs the following running loop 1-2-3-4-1:
 1. audio transmission starts and lasts for a while

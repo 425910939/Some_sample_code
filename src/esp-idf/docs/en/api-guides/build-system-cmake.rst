@@ -219,7 +219,6 @@ Project CMakeLists File
 
 Each project has a single top-level ``CMakeLists.txt`` file that contains build settings for the entire project. By default, the project CMakeLists can be quite minimal.
 
-
 Minimal Example CMakeLists
 --------------------------
 
@@ -433,20 +432,9 @@ Requirements in the build system implementation
 -----------------------------------------------
 
 - Very early in the CMake configuration process, the script ``expand_requirements.cmake`` is run. This script does a partial evaluation of all component CMakeLists.txt files and builds a graph of component requirements (this graph may have cycles). The graph is used to generate a file ``component_depends.cmake`` in the build directory.
-- The main CMake process then includes this file and uses it to determine the list of components to include in the build (internal ``BUILD_COMPONENTS`` variable). The ``BUILD_COMPONENTS`` variable is sorted so dependencies are listed first, however as the component dependency graph has cycles this cannot be guaranteed for all components. The order should be deterministic given the same set of components and component dependencies.
-- The value of ``BUILD_COMPONENTS`` is logged by CMake as "Component names: "
+- The main CMake process then includes this file and uses it to determine the list of components to include in the build (internal ``BUILD_COMPONENTS`` variable).
 - Configuration is then evaluated for the components included in the build.
 - Each component is included in the build normally and the CMakeLists.txt file is evaluated again to add the component libraries to the build.
-
-Component Dependency Order
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The order of components in the ``BUILD_COMPONENTS`` variable determines other orderings during the build:
-
-- Order that :ref:`project_include.cmake` files are included into the project.
-- Order that the list of header paths is generated for compilation (via ``-I`` argument). (Note that for a given component's source files, only that component's dependency's header paths are passed to the compiler.)
-- Order that component object archives are passed to the linker (note that the build system also passes ``--start-group`` and ``--end-group`` to the linker to allow cycles in linker dependencies, however the basic order is determined by ``BUILD_COMPONENTS``.
-
 
 Build Process Internals
 =======================
@@ -471,7 +459,7 @@ The custom ``project()`` function performs the following steps:
 - Sets the `CMAKE_TOOLCHAIN_FILE`_ variable to the ESP-IDF toolchain file with the Xtensa ESP32 toolchain.
 - Declare the actual cmake-level project by calling the `CMake project function <cmake project_>`_.
 - Load the git version. This includes some magic which will automatically re-run CMake if a new revision is checked out in git. See `File Globbing & Incremental Builds`_.
-- Include :ref:`project_include.cmake` files from any components which have them.
+- Include ``project_include.cmake`` files from any components which have them.
 - Add each component to the build. Each component CMakeLists file calls ``register_component``, calls the CMake `add_library <cmake add_library_>`_ function to add a library and then adds source files, compile options, etc.
 - Add the final app executable to the build.
 - Go back and add inter-component dependencies between components (ie adding the public header directories of each component to each other component).
@@ -499,8 +487,6 @@ If you don't want this behaviour, it can be disabled by passing ``--no-warnings`
 Overriding Parts of the Project
 -------------------------------
 
-.. _project_include.cmake:
-
 project_include.cmake
 ^^^^^^^^^^^^^^^^^^^^^
 
@@ -510,11 +496,7 @@ component directory. This CMake file is included when ``project.cmake`` is evalu
 
 ``project_include.cmake`` files are used inside ESP-IDF, for defining project-wide build features such as ``esptool.py`` command line arguments and the ``bootloader`` "special app".
 
-Unlike component ``CMakeLists.txt`` files, when including a ``project_include.cmake`` file the current source directory (``CMAKE_CURRENT_SOURCE_DIR`` and working directory) is the project directory. Use the variable ``COMPONENT_PATH`` for the absolute directory of the component.
-
 Note that ``project_include.cmake`` isn't necessary for the most common component uses - such as adding include directories to the project, or ``LDFLAGS`` to the final linking step. These values can be customised via the ``CMakeLists.txt`` file itself. See `Optional Project Variables`_ for details.
-
-``project_include.cmake`` files are included in the order given in ``BUILD_COMPONENTS`` variable (as logged by CMake). This means that a component's ``project_include.cmake`` file will be included after it's all dependencies' ``project_include.cmake`` files, unless both components are part of a dependency cycle. This is important if a ``project_include.cmake`` file relies on variables set by another component. See also :ref:`above<component-requirements-implementation>`.
 
 Take great care when setting variables or targets in a ``project_include.cmake`` file. As the values are included into the top-level project CMake pass, they can influence or break functionality across all components!
 
@@ -797,7 +779,6 @@ Here is an example minimal "pure CMake" component CMakeLists file for a componen
 - This file is quite simple as there are not a lot of source files. For components with a large number of files, the globbing behaviour of ESP-IDF's component logic can make the component CMakeLists style simpler.)
 - Any time a component adds a library target with the component name, the ESP-IDF build system will automatically add this to the build, expose public include directories, etc. If a component wants to add a library target with a different name, dependencies will need to be added manually via CMake commands.
 
-.. _cmake-file-globbing:
 
 File Globbing & Incremental Builds
 ==================================

@@ -93,9 +93,6 @@ extern "C" {
 #define tskKERNEL_VERSION_MINOR 2
 #define tskKERNEL_VERSION_BUILD 0
 
-/**
- * @brief Argument of xTaskCreatePinnedToCore indicating that task has no affinity
- */
 #define tskNO_AFFINITY INT_MAX
 
 /**
@@ -184,9 +181,6 @@ typedef struct xTASK_STATUS
 	uint32_t ulRunTimeCounter;		/*!< The total run time allocated to the task so far, as defined by the run time stats clock.  See http://www.freertos.org/rtos-run-time-stats.html.  Only valid when configGENERATE_RUN_TIME_STATS is defined as 1 in FreeRTOSConfig.h. */
 	StackType_t *pxStackBase;		/*!< Points to the lowest address of the task's stack area. */
 	uint32_t usStackHighWaterMark;	/*!< The minimum amount of stack space that has remained for the task since the task was created.  The closer this value is to zero the closer the task has come to overflowing its stack. */
-#if configTASKLIST_INCLUDE_COREID
-	BaseType_t xCoreID;				/*!< Core this task is pinned to. This field is present if CONFIG_FREERTOS_VTASKLIST_INCLUDE_COREID is set. */
-#endif
 } TaskStatus_t;
 
 /**
@@ -308,7 +302,9 @@ is used in assert() statements. */
  * is 16.
  *
  * @param usStackDepth The size of the task stack specified as the number of
- * bytes. Note that this differs from vanilla FreeRTOS.
+ * variables the stack can hold - not the number of bytes.  For example, if
+ * the stack is 16 bits wide and usStackDepth is defined as 100, 200 bytes
+ * will be allocated for stack storage.
  *
  * @param pvParameters Pointer that will be used as the parameter for the task
  * being created.
@@ -373,7 +369,9 @@ is used in assert() statements. */
  * is 16.
  *
  * @param usStackDepth The size of the task stack specified as the number of
- * bytes. Note that this differs from vanilla FreeRTOS.
+ * variables the stack can hold - not the number of bytes.  For example, if
+ * the stack is 16 bits wide and usStackDepth is defined as 100, 200 bytes
+ * will be allocated for stack storage.
  *
  * @param pvParameters Pointer that will be used as the parameter for the task
  * being created.
@@ -459,7 +457,9 @@ is used in assert() statements. */
  * configMAX_TASK_NAME_LEN in FreeRTOSConfig.h.
  *
  * @param ulStackDepth The size of the task stack specified as the number of
- * bytes. Note that this differs from vanilla FreeRTOS.
+ * variables the stack can hold - not the number of bytes.  For example, if
+ * the stack is 32-bits wide and ulStackDepth is defined as 100 then 400 bytes
+ * will be allocated for stack storage.
  *
  * @param pvParameters Pointer that will be used as the parameter for the task
  * being created.
@@ -519,7 +519,9 @@ is used in assert() statements. */
  * configMAX_TASK_NAME_LEN in FreeRTOSConfig.h.
  *
  * @param ulStackDepth The size of the task stack specified as the number of
- * bytes. Note that this differs from vanilla FreeRTOS.
+ * variables the stack can hold - not the number of bytes.  For example, if
+ * the stack is 32-bits wide and ulStackDepth is defined as 100 then 400 bytes
+ * will be allocated for stack storage.
  *
  * @param pvParameters Pointer that will be used as the parameter for the task
  * being created.
@@ -546,8 +548,9 @@ is used in assert() statements. */
  * @code{c}
  *
  *     // Dimensions the buffer that the task being created will use as its stack.
- *     // NOTE:  This is the number of bytes the stack will hold, not the number of
- *     // words as found in vanilla FreeRTOS.
+ *     // NOTE:  This is the number of words the stack will hold, not the number of
+ *     // bytes.  For example, if each stack item is 32-bits, and this is set to 100,
+ *     // then 400 bytes (100 * 32-bits) will be allocated.
  *     #define STACK_SIZE 200
  *
  *     // Structure that will hold the TCB of the task being created.
@@ -580,7 +583,7 @@ is used in assert() statements. */
  *         xHandle = xTaskCreateStatic(
  *                       vTaskCode,       // Function that implements the task.
  *                       "NAME",          // Text name for the task.
- *                       STACK_SIZE,      // Stack size in bytes, not words.
+ *                       STACK_SIZE,      // Stack size in words, not bytes.
  *                       ( void * ) 1,    // Parameter passed into the task.
  *                       tskIDLE_PRIORITY,// Priority at which the task is created.
  *                       xStack,          // Array to use as the task's stack.
@@ -636,7 +639,7 @@ is used in assert() statements. */
  * {
  * 	vATask,		// pvTaskCode - the function that implements the task.
  * 	"ATask",	// pcName - just a text name for the task to assist debugging.
- * 	100,		// usStackDepth	- the stack size DEFINED IN BYTES.
+ * 	100,		// usStackDepth	- the stack size DEFINED IN WORDS.
  * 	NULL,		// pvParameters - passed into the task function as the function parameters.
  * 	( 1UL | portPRIVILEGE_BIT ),// uxPriority - task priority, set the portPRIVILEGE_BIT if the task should run in a privileged state.
  * 	cStackBuffer,// puxStackBuffer - the buffer to be used as the task stack.
@@ -1333,15 +1336,15 @@ char *pcTaskGetTaskName( TaskHandle_t xTaskToQuery ) PRIVILEGED_FUNCTION; /*lint
  * INCLUDE_uxTaskGetStackHighWaterMark must be set to 1 in FreeRTOSConfig.h for
  * this function to be available.
  *
- * High water mark is the minimum free stack space there has been (in bytes
- * rather than words as found in vanilla FreeRTOS) since the task started.
+ * High water mark is the minimum free stack space there has been (in words,
+ * so on a 32 bit machine a value of 1 means 4 bytes) since the task started.
  * The smaller the returned number the closer the task has come to overflowing its stack.
  *
  * @param xTask Handle of the task associated with the stack to be checked.
  * Set xTask to NULL to check the stack of the calling task.
  *
- * @return The smallest amount of free stack space there has been (in bytes
- * rather than words as found in vanilla FreeRTOS) since the task referenced by
+ * @return The smallest amount of free stack space there has been (in words, so
+ * actual spaces on the stack rather than bytes) since the task referenced by
  * xTask was created.
  */
 UBaseType_t uxTaskGetStackHighWaterMark( TaskHandle_t xTask ) PRIVILEGED_FUNCTION;
@@ -1686,6 +1689,29 @@ void vTaskList( char * pcWriteBuffer ) PRIVILEGED_FUNCTION; /*lint !e971 Unquali
  * \ingroup TaskUtils
  */
 void vTaskGetRunTimeStats( char *pcWriteBuffer ) PRIVILEGED_FUNCTION; /*lint !e971 Unqualified char types are allowed for strings and single characters only. */
+
+/**
+ * Get the real time CPU usage statistics as a string
+ *
+ * This tasks measures the CPU usage of each task as a percentage over a given time.
+ * This function will block over the measurement duration, and CPU usage will be shown
+ * as a percentage of the overall measurement duration.
+ *
+ * @param pcWriteBuffer A buffer into which the execution times will be
+ * written, in ASCII form.  This buffer is assumed to be large enough to
+ * contain the generated report.  Approximately 40 bytes per task should
+ * be sufficient.
+ *
+ * @param xTicksToWait The number of ticks the CPU consumption should be measured over.
+ * This function will during the measurement, therefore the duration of measurement
+ * may be extended if a higher priority tasks prevents the calling task from unblocking.
+ *
+ * @note The stats of any tasks that are created or deleted whilst this function is
+ * blocked will not be shown.
+ *
+ * \ingroup TaskUtils
+ */
+BaseType_t vTaskGetRealTimeStats( char *pcWriteBuffer, TickType_t xTicksToWait );
 
 /**
  * Send task notification.

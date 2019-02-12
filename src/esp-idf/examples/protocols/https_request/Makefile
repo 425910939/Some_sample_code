@@ -3,7 +3,7 @@
 # project subdirectory.
 #
 
-PROJECT_NAME := https_request
+PROJECT_NAME := https-request
 
 include $(IDF_PATH)/make/project.mk
 

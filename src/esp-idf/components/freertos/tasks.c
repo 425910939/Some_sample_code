@@ -489,6 +489,7 @@ to its original value when it is released. */
 #if configUSE_TICK_HOOK > 0
 	extern void vApplicationTickHook( void );
 #endif
+extern void esp_vApplicationTickHook( void );
 
 #if  portFIRST_TASK_HOOK
 	extern void vPortFirstTaskHook(TaskFunction_t taskfn);
@@ -2039,19 +2040,16 @@ BaseType_t i;
 
 	/* Add the per-core idle tasks at the lowest priority. */
 	for ( i=0; i<portNUM_PROCESSORS; i++) {
-		//Generate idle task name
-		char cIdleName[configMAX_TASK_NAME_LEN];
-		snprintf(cIdleName, configMAX_TASK_NAME_LEN, "IDLE%d", i);
 		#if ( INCLUDE_xTaskGetIdleTaskHandle == 1 )
 		{
 			/* Create the idle task, storing its handle in xIdleTaskHandle so it can
 			be returned by the xTaskGetIdleTaskHandle() function. */
-			xReturn = xTaskCreatePinnedToCore( prvIdleTask, cIdleName, tskIDLE_STACK_SIZE, ( void * ) NULL, ( tskIDLE_PRIORITY | portPRIVILEGE_BIT ), &xIdleTaskHandle[i], i ); /*lint !e961 MISRA exception, justified as it is not a redundant explicit cast to all supported compilers. */
+			xReturn = xTaskCreatePinnedToCore( prvIdleTask, "IDLE", tskIDLE_STACK_SIZE, ( void * ) NULL, ( tskIDLE_PRIORITY | portPRIVILEGE_BIT ), &xIdleTaskHandle[i], i ); /*lint !e961 MISRA exception, justified as it is not a redundant explicit cast to all supported compilers. */
 		}
 		#else
 		{
 			/* Create the idle task without storing its handle. */
-			xReturn = xTaskCreatePinnedToCore( prvIdleTask, cIdleName, tskIDLE_STACK_SIZE, ( void * ) NULL, ( tskIDLE_PRIORITY | portPRIVILEGE_BIT ), NULL, i);  /*lint !e961 MISRA exception, justified as it is not a redundant explicit cast to all supported compilers. */
+			xReturn = xTaskCreatePinnedToCore( prvIdleTask, "IDLE", tskIDLE_STACK_SIZE, ( void * ) NULL, ( tskIDLE_PRIORITY | portPRIVILEGE_BIT ), NULL, i);  /*lint !e961 MISRA exception, justified as it is not a redundant explicit cast to all supported compilers. */
 		}
 		#endif /* INCLUDE_xTaskGetIdleTaskHandle */
 	}
@@ -2496,9 +2494,7 @@ BaseType_t xSwitchRequired = pdFALSE;
 		#if ( configUSE_TICK_HOOK == 1 )
 		vApplicationTickHook();
 		#endif /* configUSE_TICK_HOOK */
-		#if ( CONFIG_FREERTOS_LEGACY_HOOKS == 1 )
 		esp_vApplicationTickHook();
-		#endif /* CONFIG_FREERTOS_LEGACY_HOOKS */
 
 		/*
 		  We can't really calculate what we need, that's done on core 0... just assume we need a switch.
@@ -2641,9 +2637,7 @@ BaseType_t xSwitchRequired = pdFALSE;
 				#if ( configUSE_TICK_HOOK == 1 )
 				vApplicationTickHook();
 				#endif /* configUSE_TICK_HOOK */
-				#if ( CONFIG_FREERTOS_LEGACY_HOOKS == 1 )
 				esp_vApplicationTickHook();
-				#endif /* CONFIG_FREERTOS_LEGACY_HOOKS */
 			}
 			else
 			{
@@ -2663,9 +2657,7 @@ BaseType_t xSwitchRequired = pdFALSE;
 			vApplicationTickHook();
 		}
 		#endif
-		#if ( CONFIG_FREERTOS_LEGACY_HOOKS == 1 )
 		esp_vApplicationTickHook();
-		#endif /* CONFIG_FREERTOS_LEGACY_HOOKS */
 	}
 
 	#if ( configUSE_PREEMPTION == 1 )
@@ -3439,12 +3431,10 @@ static portTASK_FUNCTION( prvIdleTask, pvParameters )
 			vApplicationIdleHook();
 		}
 		#endif /* configUSE_IDLE_HOOK */
-		#if ( CONFIG_FREERTOS_LEGACY_HOOKS == 1 )
 		{
 			/* Call the esp-idf hook system */
 			esp_vApplicationIdleHook();
 		}
-		#endif /* CONFIG_FREERTOS_LEGACY_HOOKS */
 
 
 		/* This conditional compilation should use inequality to 0, not equality
@@ -3454,6 +3444,7 @@ static portTASK_FUNCTION( prvIdleTask, pvParameters )
 		#if ( configUSE_TICKLESS_IDLE != 0 )
 		{
 		TickType_t xExpectedIdleTime;
+		BaseType_t xEnteredSleep = pdFALSE;
 
 			/* It is not desirable to suspend then resume the scheduler on
 			each iteration of the idle task.  Therefore, a preliminary
@@ -3475,7 +3466,7 @@ static portTASK_FUNCTION( prvIdleTask, pvParameters )
 					if( xExpectedIdleTime >= configEXPECTED_IDLE_TIME_BEFORE_SLEEP )
 					{
 						traceLOW_POWER_IDLE_BEGIN();
-						portSUPPRESS_TICKS_AND_SLEEP( xExpectedIdleTime );
+						xEnteredSleep = portSUPPRESS_TICKS_AND_SLEEP( xExpectedIdleTime );
 						traceLOW_POWER_IDLE_END();
 					}
 					else
@@ -3489,7 +3480,16 @@ static portTASK_FUNCTION( prvIdleTask, pvParameters )
 			{
 				mtCOVERAGE_TEST_MARKER();
 			}
+			/* It might be possible to enter tickless idle again, so skip
+			 * the fallback sleep hook if tickless idle was successful
+			 */
+			if ( !xEnteredSleep )
+			{
+				esp_vApplicationWaitiHook();
+			}
 		}
+		#else
+		esp_vApplicationWaitiHook();
 		#endif /* configUSE_TICKLESS_IDLE */
 	}
 }
@@ -3784,10 +3784,6 @@ BaseType_t xTaskGetAffinity( TaskHandle_t xTask )
 				pxTaskStatusArray[ uxTask ].xTaskNumber = pxNextTCB->uxTCBNumber;
 				pxTaskStatusArray[ uxTask ].eCurrentState = eState;
 				pxTaskStatusArray[ uxTask ].uxCurrentPriority = pxNextTCB->uxPriority;
-
-				#if ( configTASKLIST_INCLUDE_COREID == 1 )
-				pxTaskStatusArray[ uxTask ].xCoreID = pxNextTCB->xCoreID;
-				#endif /* configTASKLIST_INCLUDE_COREID */
 
 				#if ( INCLUDE_vTaskSuspend == 1 )
 				{
@@ -4453,11 +4449,7 @@ For ESP32 FreeRTOS, vTaskExitCritical implements both portEXIT_CRITICAL and port
 				pcWriteBuffer = prvWriteNameToBuffer( pcWriteBuffer, pxTaskStatusArray[ x ].pcTaskName );
 
 				/* Write the rest of the string. */
-#if configTASKLIST_INCLUDE_COREID
-				sprintf( pcWriteBuffer, "\t%c\t%u\t%u\t%u\t%hd\r\n", cStatus, ( unsigned int ) pxTaskStatusArray[ x ].uxCurrentPriority, ( unsigned int ) pxTaskStatusArray[ x ].usStackHighWaterMark, ( unsigned int ) pxTaskStatusArray[ x ].xTaskNumber, ( int ) pxTaskStatusArray[ x ].xCoreID );
-#else
 				sprintf( pcWriteBuffer, "\t%c\t%u\t%u\t%u\r\n", cStatus, ( unsigned int ) pxTaskStatusArray[ x ].uxCurrentPriority, ( unsigned int ) pxTaskStatusArray[ x ].usStackHighWaterMark, ( unsigned int ) pxTaskStatusArray[ x ].xTaskNumber );
-#endif
 				pcWriteBuffer += strlen( pcWriteBuffer );
 			}
 
@@ -4597,6 +4589,126 @@ For ESP32 FreeRTOS, vTaskExitCritical implements both portEXIT_CRITICAL and port
 		{
 			mtCOVERAGE_TEST_MARKER();
 		}
+	}
+
+	BaseType_t vTaskGetRealTimeStats( char *pcWriteBuffer, TickType_t xTicksToWait )
+	{
+		#if( configUSE_TRACE_FACILITY != 1 )
+		{
+			#error configUSE_TRACE_FACILITY must also be set to 1 in FreeRTOSConfig.h to use vTaskGetRunTimeStats().
+		}
+		#endif
+
+		TaskStatus_t *pxTaskStatusArrayStart = NULL, *pxTaskStatusArrayEnd = NULL;
+		UBaseType_t uxArraySizeStart, uxArraySizeEnd;
+		uint32_t ulTimeStart, ulTimeEnd, ulStatsAsPercentage;
+
+		// Make sure the write buffer does not contain a string.
+		*pcWriteBuffer = 0x00;
+
+		//Allocate array to store the statuses of current tasks
+		uxArraySizeStart = uxCurrentNumberOfTasks;
+		pxTaskStatusArrayStart = pvPortMalloc( uxArraySizeStart * sizeof( TaskStatus_t ) );
+		if(pxTaskStatusArrayStart == NULL) {
+			//Failed to allocated starting task status arrays
+			goto err;
+		}
+
+		//Get starting statuses of tasks
+		uxArraySizeStart = uxTaskGetSystemState(pxTaskStatusArrayStart, uxArraySizeStart, &ulTimeStart);
+		if (uxArraySizeStart == 0) {
+			//Array was not large enough to store all task statuses
+			goto err;
+		}
+
+		//Wait for the specified amount of time
+		vTaskDelay(xTicksToWait);
+
+		uxArraySizeEnd = uxCurrentNumberOfTasks;
+		pxTaskStatusArrayEnd = pvPortMalloc( uxArraySizeEnd * sizeof( TaskStatus_t ) );
+		if(pxTaskStatusArrayEnd == NULL) {
+			//Failed to allocated ending task status arrays
+			goto err;
+		}
+
+		//Get end statuses of tasks
+		uxArraySizeEnd = uxTaskGetSystemState(pxTaskStatusArrayEnd, uxArraySizeEnd, &ulTimeEnd);
+		if (uxArraySizeEnd == 0){
+			//Array was not large enough to store all task statuses
+			goto err;
+		}
+
+		//Get measurement duration for real time stats. Check if total time has overflowed
+		uint32_t ulElapsedTime = (ulTimeStart <= ulTimeEnd) ? (ulTimeEnd - ulTimeStart) : (ulTimeStart - ulTimeEnd);
+		ulElapsedTime = (ulElapsedTime/100UL)*portNUM_PROCESSORS;
+
+		if (ulElapsedTime > 0) {
+			//Calculate and write stats to buffer
+			uint32_t ulTaskRunTime;
+			for (UBaseType_t i = 0; i < uxArraySizeStart; i++) {
+				//Before and After arrays may not store tasks in the same order
+				bool found = false;
+				for (UBaseType_t j = 0; j < uxArraySizeEnd; j++) {
+					if (pxTaskStatusArrayStart[i].xHandle == pxTaskStatusArrayEnd[j].xHandle) {
+						//Get duration task has run for. Check if duration has overflowed
+						ulTaskRunTime = (pxTaskStatusArrayStart[i].ulRunTimeCounter <= pxTaskStatusArrayEnd[j].ulRunTimeCounter) ?
+										(pxTaskStatusArrayEnd[j].ulRunTimeCounter - pxTaskStatusArrayStart[i].ulRunTimeCounter) :
+										(pxTaskStatusArrayStart[i].ulRunTimeCounter - pxTaskStatusArrayEnd[j].ulRunTimeCounter);
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					//Could not find the same task in task status end array. Could have been deleted while this function blocked.
+					continue;
+				}
+				ulStatsAsPercentage = ulTaskRunTime / ulElapsedTime;
+				pcWriteBuffer = prvWriteNameToBuffer( pcWriteBuffer, pxTaskStatusArrayStart[i].pcTaskName );
+
+				if( ulStatsAsPercentage > 0UL ){
+					#ifdef portLU_PRINTF_SPECIFIER_REQUIRED
+					{
+						sprintf( pcWriteBuffer, "\t%lu\t\t%lu%%\r\n", ulTaskRunTime, ulStatsAsPercentage );
+					}
+					#else
+					{
+						/* sizeof( int ) == sizeof( long ) so a smaller
+						printf() library can be used. */
+						sprintf( pcWriteBuffer, "\t%u\t\t%u%%\r\n", ( unsigned int ) ulTaskRunTime, ( unsigned int ) ulStatsAsPercentage );
+					}
+					#endif
+				} else {
+					/* If the percentage is zero here then the task has
+					consumed less than 1% of the total run time. */
+					#ifdef portLU_PRINTF_SPECIFIER_REQUIRED
+					{
+						sprintf( pcWriteBuffer, "\t%lu\t\t<1%%\r\n", ulTaskRunTime );
+					}
+					#else
+					{
+						/* sizeof( int ) == sizeof( long ) so a smaller
+						printf() library can be used. */
+						sprintf( pcWriteBuffer, "\t%u\t\t<1%%\r\n", ( unsigned int ) ulTaskRunTime );
+					}
+					#endif
+				}
+				pcWriteBuffer += strlen( pcWriteBuffer );
+			}
+		}
+
+		//Free memory used
+		free(pxTaskStatusArrayStart);
+		free(pxTaskStatusArrayEnd);
+		return pdPASS;
+
+		err:
+		if (pxTaskStatusArrayStart != NULL) {
+			free(pxTaskStatusArrayStart);
+		}
+		if (pxTaskStatusArrayEnd != NULL) {
+			free(pxTaskStatusArrayEnd);
+		}
+		return pdFAIL;
 	}
 
 #endif /* ( ( configGENERATE_RUN_TIME_STATS == 1 ) && ( configUSE_STATS_FORMATTING_FUNCTIONS > 0 ) ) */

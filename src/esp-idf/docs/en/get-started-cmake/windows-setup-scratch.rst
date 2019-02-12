@@ -42,7 +42,7 @@ The "Customise" step of the Python installer gives a list of options. The last o
 
 Once Python is installed, open a Windows Command Prompt from the Start menu and run the following command::
 
-  pip install --user pyserial
+  pip install pyserial
 
 MConf for IDF
 ^^^^^^^^^^^^^
@@ -54,11 +54,9 @@ This tool will also need to be unzipped to a directory which is then `added to y
 Toolchain Setup
 ===============
 
-.. include:: /_build/inc/download-links.inc
+Download the precompiled Windows toolchain from dl.espressif.com:
 
-Download the precompiled Windows toolchain:
-
-|download_link_win32|
+https://dl.espressif.com/dl/xtensa-esp32-elf-win32-1.22.0-80-g6c4433a-5.2.0.zip
 
 Unzip the zip file to ``C:\Program Files`` (or some other location). The zip file contains a single directory ``xtensa-esp32-elf``.
 

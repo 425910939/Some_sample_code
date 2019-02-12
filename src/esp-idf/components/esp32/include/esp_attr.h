@@ -42,8 +42,6 @@
 #if CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
 // Forces bss variable into external memory. "
 #define EXT_RAM_ATTR __attribute__((section(".ext_ram.bss")))
-#else
-#define EXT_RAM_ATTR 
 #endif
 
 // Forces data into RTC slow memory. See "docs/deep-sleep-stub.rst"
@@ -51,14 +49,8 @@
 // during a deep sleep / wake cycle.
 #define RTC_DATA_ATTR __attribute__((section(".rtc.data")))
 
-// Forces read-only data into RTC memory. See "docs/deep-sleep-stub.rst"
+// Forces read-only data into RTC slow memory. See "docs/deep-sleep-stub.rst"
 #define RTC_RODATA_ATTR __attribute__((section(".rtc.rodata")))
-
-// Allows to place data into RTC_SLOW memory.
-#define RTC_SLOW_ATTR __attribute__((section(".rtc.force_slow")))
-
-// Allows to place data into RTC_FAST memory.
-#define RTC_FAST_ATTR __attribute__((section(".rtc.force_fast")))
 
 // Forces data into noinit section to avoid initialization after restart.
 #define __NOINIT_ATTR __attribute__((section(".noinit")))

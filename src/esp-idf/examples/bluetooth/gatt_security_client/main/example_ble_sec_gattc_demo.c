@@ -33,7 +33,7 @@
 #include "freertos/FreeRTOS.h"
 
 #define GATTC_TAG             "SEC_GATTC_DEMO"
-#define REMOTE_SERVICE_UUID   ESP_GATT_UUID_HEART_RATE_SVC
+#define REMOTE_SERVICE_UUID   0x1809
 #define REMOTE_NOTIFY_UUID    0x2A37
 
 static esp_gattc_char_elem_t *char_elem_result   = NULL;
@@ -139,6 +139,9 @@ static char *esp_auth_req_to_str(esp_ble_auth_req_t auth_req)
     case ESP_LE_AUTH_REQ_MITM:
         auth_str = "ESP_LE_AUTH_REQ_MITM";
         break;
+    case ESP_LE_AUTH_REQ_BOND_MITM:
+        auth_str = "ESP_LE_AUTH_REQ_BOND_MITM";
+        break;
     case ESP_LE_AUTH_REQ_SC_ONLY:
         auth_str = "ESP_LE_AUTH_REQ_SC_ONLY";
         break;
@@ -192,7 +195,7 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
         break;
     case ESP_GATTC_SEARCH_RES_EVT: {
         ESP_LOGI(GATTC_TAG, "SEARCH RES: conn_id = %x is primary service %d", p_data->search_res.conn_id, p_data->search_res.is_primary);
-        ESP_LOGI(GATTC_TAG, "start handle %d end handle %d current handle value %d", p_data->search_res.start_handle, p_data->search_res.end_handle, p_data->search_res.srvc_id.inst_id);
+        ESP_LOGI(GATTC_TAG, "start handle %d end handle %d current handle value %d", p_data->search_res.start_handle, p_data->search_res.start_handle, p_data->search_res.srvc_id.inst_id);
         if (p_data->search_res.srvc_id.uuid.len == ESP_UUID_LEN_16 && p_data->search_res.srvc_id.uuid.uuid.uuid16 == REMOTE_SERVICE_UUID) {
             ESP_LOGI(GATTC_TAG, "UUID16: %x", p_data->search_res.srvc_id.uuid.uuid.uuid16);
             get_service = true;
@@ -205,13 +208,6 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
         if (p_data->search_cmpl.status != ESP_GATT_OK){
             ESP_LOGE(GATTC_TAG, "search service failed, error status = %x", p_data->search_cmpl.status);
             break;
-        }
-        if(p_data->search_cmpl.searched_service_source == ESP_GATT_SERVICE_FROM_REMOTE_DEVICE) {
-            ESP_LOGI(GATTC_TAG, "Get service information from remote device");
-        } else if (p_data->search_cmpl.searched_service_source == ESP_GATT_SERVICE_FROM_NVS_FLASH) {
-            ESP_LOGI(GATTC_TAG, "Get service information from flash");
-        } else {
-            ESP_LOGI(GATTC_TAG, "unknown service source");
         }
         if (get_service){
             uint16_t count  = 0;

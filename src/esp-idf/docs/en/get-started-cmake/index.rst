@@ -118,7 +118,7 @@ Linux and MacOS
 
     mkdir -p ~/esp
     cd ~/esp
-    git clone --recursive https://github.com/espressif/esp-idf.git
+    git clone --branch feature/cmake --recursive https://github.com/espressif/esp-idf.git
 
 ESP-IDF will be downloaded into ``~/esp/esp-idf``.
 
@@ -130,7 +130,7 @@ Windows Command Prompt
 
     mkdir %userprofile%\esp
     cd %userprofile%\esp
-    git clone --recursive https://github.com/espressif/esp-idf.git
+    git clone --branch feature/cmake --recursive https://github.com/espressif/esp-idf.git
 
 .. highlight:: bash
 .. note::
@@ -139,6 +139,13 @@ Windows Command Prompt
 
         cd esp-idf
         git submodule update --init
+
+.. note::
+
+   The CMake-based build system preview uses a different Git branch to the default. This branch is ``feature/cmake``. If you missed the ``--branch`` option when cloning then you can switch branches on the command line::
+
+         cd esp-idf
+         git checkout feature/cmake
 
 .. _get-started-setup-path-cmake:
 
@@ -243,7 +250,7 @@ Here are couple of tips on navigation and use of ``menuconfig``:
 
 .. attention::
 
-    When using ESP32-DevKitC board with ESP32-SOLO-1 module, enable single core mode (:ref:`CONFIG_FREERTOS_UNICORE`) in menuconfig before flashing example applications.
+    When using ESP32-DevKitC board with ESP32-SOLO-1 module, enable single core mode (:envvar:`CONFIG_FREERTOS_UNICORE`) in menuconfig before flashing example applications.
 
 
 .. _get-started-build-cmake:
@@ -371,7 +378,7 @@ To exit the monitor use shortcut ``Ctrl+]``.
         e���)(Xn@�y.!��(�PW+)��Hn9a؅/9�!�t5��P�~�k��e�ea�5�jA
         ~zY��Y(1�,1�� e���)(Xn@�y.!Dr�zY(�jpi�|�+z5Ymvp
 
-    or monitor fails shortly after upload, your board is likely using 26MHz crystal. Most development board designs use 40MHz and the ESP-IDF uses this default value. Exit the monitor, go back to the :ref:`menuconfig <get-started-configure-cmake>`, change :ref:`CONFIG_ESP32_XTAL_FREQ_SEL` to 26MHz, then :ref:`build and flash <get-started-flash-cmake>` the application again. This is found under ``idf.py menuconfig`` under Component config --> ESP32-specific --> Main XTAL frequency.
+    or monitor fails shortly after upload, your board is likely using 26MHz crystal. Most development board designs use 40MHz and the ESP-IDF uses this default value. Exit the monitor, go back to the :ref:`menuconfig <get-started-configure-cmake>`, change :envvar:`CONFIG_ESP32_XTAL_FREQ_SEL` to 26MHz, then :ref:`build and flash <get-started-flash-cmake>` the application again. This is found under ``idf.py menuconfig`` under Component config --> ESP32-specific --> Main XTAL frequency.
 
 .. note::
 

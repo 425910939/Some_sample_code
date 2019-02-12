@@ -2,10 +2,6 @@
 Setup Toolchain for Mac OS from Scratch
 ***************************************
 
-.. note::
-    
-    Standard process for installing the toolchain is described :doc:`here <macos-setup>`. See :ref:`Customized Setup of Toolchain <get-started-customized-setup>` section for some of the reasons why installing the toolchain from scratch may be necessary.
-
 Install Prerequisites
 =====================
 
@@ -13,9 +9,10 @@ Install Prerequisites
 
     sudo easy_install pip
 
-.. note::
+- install pyserial::
 
-    ``pip`` will be used later for installing :ref:`the required Python packages <get-started-get-packages>`.
+    sudo pip install pyserial
+
 
 Compile the Toolchain from Source
 =================================
@@ -45,16 +42,15 @@ Mount it::
 
 Create a symlink to your work directory::
 
-    mkdir -p ~/esp
-    ln -s /Volumes/ctng ~/esp/ctng-volume
+    cd ~/esp
+    ln -s /Volumes/ctng crosstool-NG
 
-Go into the newly created directory::
+Download ``crosstool-NG`` and build it::
 
-    cd ~/esp/ctng-volume
-
-Download ``crosstool-NG`` and build it:
-
-.. include:: /_build/inc/scratch-build-code.inc
+    cd ~/esp
+    git clone -b xtensa-1.22.x https://github.com/espressif/crosstool-NG.git
+    cd crosstool-NG
+    ./bootstrap && ./configure --enable-local && make install
 
 Build the toolchain::
 
@@ -62,7 +58,7 @@ Build the toolchain::
     ./ct-ng build
     chmod -R u+w builds/xtensa-esp32-elf
 
-Toolchain will be built in ``~/esp/ctng-volume/crosstool-NG/builds/xtensa-esp32-elf``. Follow :ref:`instructions for standard setup <setup-macos-toolchain-add-it-to-path>` to add the toolchain to your ``PATH``.
+Toolchain will be built in ``~/esp/crosstool-NG/builds/xtensa-esp32-elf``. Follow :ref:`instructions for standard setup <setup-macos-toolchain-add-it-to-path>` to add the toolchain to your ``PATH``.
 
 
 Next Steps

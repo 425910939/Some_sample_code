@@ -37,7 +37,6 @@
 #include "aws_iot_version.h"
 #include "aws_iot_mqtt_client_interface.h"
 
-#define HOST_ADDRESS_SIZE 255
 /**
  * @brief Default cert location
  */
@@ -46,7 +45,7 @@ char certDirectory[PATH_MAX + 1] = "../../../certs";
 /**
  * @brief Default MQTT HOST URL is pulled from the aws_iot_config.h
  */
-char HostAddress[HOST_ADDRESS_SIZE] = AWS_IOT_MQTT_HOST;
+char HostAddress[255] = AWS_IOT_MQTT_HOST;
 
 /**
  * @brief Default MQTT port is pulled from the aws_iot_config.h
@@ -63,7 +62,7 @@ void iot_subscribe_callback_handler(AWS_IoT_Client *pClient, char *topicName, ui
 	IOT_UNUSED(pData);
 	IOT_UNUSED(pClient);
 	IOT_INFO("Subscribe callback");
-	IOT_INFO("%.*s\t%.*s", topicNameLen, topicName, (int) params->payloadLen, (char *) params->payload);
+	IOT_INFO("%.*s\t%.*s", topicNameLen, topicName, (int) params->payloadLen, params->payload);
 }
 
 void disconnectCallbackHandler(AWS_IoT_Client *pClient, void *data) {
@@ -95,7 +94,7 @@ void parseInputArgsForConnectParams(int argc, char **argv) {
 	while(-1 != (opt = getopt(argc, argv, "h:p:c:x:"))) {
 		switch(opt) {
 			case 'h':
-				strncpy(HostAddress, optarg, HOST_ADDRESS_SIZE);
+				strcpy(HostAddress, optarg);
 				IOT_DEBUG("Host %s", optarg);
 				break;
 			case 'p':
@@ -103,7 +102,7 @@ void parseInputArgsForConnectParams(int argc, char **argv) {
 				IOT_DEBUG("arg %s", optarg);
 				break;
 			case 'c':
-				strncpy(certDirectory, optarg, PATH_MAX + 1);
+				strcpy(certDirectory, optarg);
 				IOT_DEBUG("cert root directory %s", optarg);
 				break;
 			case 'x':

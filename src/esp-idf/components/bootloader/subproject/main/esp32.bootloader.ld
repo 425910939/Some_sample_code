@@ -15,12 +15,7 @@ MEMORY
   dport0_seg (RW) :                 	org = 0x3FF00000, len = 0x10
   /* IRAM POOL1, used for APP CPU cache. Bootloader runs from here during the final stage of loading the app because APP CPU is still held in reset, the main app enables APP CPU cache */
   iram_loader_seg (RWX) :           org = 0x40078000, len = 0x8000  /* 32KB, APP CPU cache */
-  /* 63kB, IRAM. We skip the first 1k to prevent the entry point being
-     placed into the same range as exception vectors in the app.
-     This leads to idf_monitor decoding ROM bootloader "entry 0x40080xxx"
-     message as one of the exception vectors, which looks scary to users.
-  */
-  iram_seg (RWX) :                  org = 0x40080400, len = 0xfc00
+  iram_seg (RWX) :                  org = 0x40080000, len = 0x10000 /* 64KB, IRAM */
   /* 64k at the end of DRAM, after ROM bootloader stack */
   dram_seg (RW) :                  	org = 0x3FFF0000, len = 0x10000
 }
@@ -40,7 +35,7 @@ SECTIONS
      *(.iram1 .iram1.*) /* catch stray IRAM_ATTR */
     *liblog.a:(.literal .text .literal.* .text.*)
     *libgcc.a:(.literal .text .literal.* .text.*)
-    *libbootloader_support.a:bootloader_common.*(.literal .text .literal.* .text.*)
+    *libbootloader_support.a:bootloader_common.o(.literal .text .literal.* .text.*)
     *libbootloader_support.a:bootloader_flash.*(.literal .text .literal.* .text.*)
     *libbootloader_support.a:bootloader_random.*(.literal .text .literal.* .text.*)
     *libbootloader_support.a:bootloader_utility.*(.literal .text .literal.* .text.*)

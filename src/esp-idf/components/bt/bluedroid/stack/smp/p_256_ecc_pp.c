@@ -27,8 +27,13 @@
 #include "p_256_ecc_pp.h"
 #include "p_256_multprecision.h"
 
+#if CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
+elliptic_curve_t EXT_RAM_ATTR curve;
+elliptic_curve_t EXT_RAM_ATTR curve_p256;
+#else
 elliptic_curve_t curve;
 elliptic_curve_t curve_p256;
+#endif
 
 static void p_256_init_point(Point *q)
 {

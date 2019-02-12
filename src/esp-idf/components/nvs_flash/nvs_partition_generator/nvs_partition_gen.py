@@ -17,10 +17,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-from __future__ import division, print_function
-from builtins import int, range
-from io import open
 import sys
 import argparse
 import binascii
@@ -30,7 +26,6 @@ import os
 import array
 import csv
 import zlib
-import codecs
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 
@@ -67,35 +62,34 @@ class Page(object):
     VERSION1=0xFF
     VERSION2=0xFE
 
-    def __init__(self, page_num, is_rsrv_page=False):
+    def __init__(self, page_num):
         self.entry_num = 0
         self.is_encrypt = False
         self.encr_key = None
         self.bitmap_array = array.array('B')
-        self.version = Page.VERSION2
+        self.version = Page.VERSION1
         self.page_buf = bytearray(b'\xff')*Page.PAGE_PARAMS["max_size"]
-        if not is_rsrv_page:
-            self.bitmap_array = self.create_bitmap_array()
-            self.set_header(page_num)
+        self.bitmap_array = self.create_bitmap_array()
+        self.set_header(page_num)
 
     def set_header(self, page_num):
         global page_header
 
         # set page state to active
-        page_header= bytearray(b'\xff') *32
+        page_header= bytearray(b'\xff')*32
         page_state_active_seq = Page.ACTIVE
-        struct.pack_into('<I', page_header, 0,  page_state_active_seq)
+        page_header[0:4] = struct.pack('<I', page_state_active_seq)
         # set page sequence number
-        struct.pack_into('<I', page_header, 4, page_num)
+        page_header[4:8] = struct.pack('<I', page_num)
         # set version
         if version == Page.VERSION2:
             page_header[8] = Page.VERSION2
         elif version == Page.VERSION1:
             page_header[8] = Page.VERSION1
         # set header's CRC
-        crc_data = bytes(page_header[4:28])
-        crc = zlib.crc32(crc_data, 0xFFFFFFFF)
-        struct.pack_into('<I', page_header, 28, crc & 0xFFFFFFFF)
+        crc_data = page_header[4:28]
+        crc = zlib.crc32(buffer(crc_data), 0xFFFFFFFF)
+        page_header[28:32] = struct.pack('<I', crc & 0xFFFFFFFF)
         self.page_buf[0:len(page_header)] = page_header
 
 
@@ -109,7 +103,7 @@ class Page(object):
 
     def write_bitmaparray(self):
         bitnum = self.entry_num * 2
-        byte_idx = bitnum // 8 # Find byte index in the array
+        byte_idx = bitnum / 8 # Find byte index in the array
         bit_offset = bitnum & 7 # Find bit offset in given byte index
         mask = ~(1 << bit_offset)
         self.bitmap_array[byte_idx] &= mask
@@ -121,9 +115,8 @@ class Page(object):
     def encrypt_entry(self, data_arr, tweak_arr, encr_key):
         # Encrypt 32 bytes of data using AES-XTS encryption
         backend = default_backend()
-        plain_text = codecs.decode(data_arr, 'hex')
-        tweak = codecs.decode(tweak_arr, 'hex')
-
+        plain_text = data_arr.decode('hex')
+        tweak = tweak_arr.decode('hex')
         cipher = Cipher(algorithms.AES(encr_key), modes.XTS(tweak), backend=backend)
         encryptor = cipher.encryptor()
         encrypted_data = encryptor.update(plain_text)
@@ -143,7 +136,7 @@ class Page(object):
 
     def encrypt_data(self, data_input, no_of_entries, nvs_obj):
         # Set values needed for encryption and encrypt data byte wise
-        encr_data_to_write = bytearray()
+        encr_data_to_write = ''
         data_len_needed = 64 #in hex
         tweak_len_needed = 32 #in hex
         init_tweak_val = '0'
@@ -151,18 +144,17 @@ class Page(object):
         tweak_tmp = ''
         encr_key_input = None
 
-
         # Extract encryption key and tweak key from given key input
-        encr_key_input = codecs.decode(self.encr_key, 'hex')
+        encr_key_input = self.encr_key.decode('hex')
 
         rel_addr = nvs_obj.page_num * Page.PAGE_PARAMS["max_size"] + Page.FIRST_ENTRY_OFFSET
 
-        if not isinstance(data_input, bytearray):
-            byte_arr = bytearray(b'\xff') * 32
+        if type(data_input) != bytearray:
+            byte_arr = bytearray('\xff') * 32
             byte_arr[0:len(data_input)] = data_input
             data_input = byte_arr
 
-        data_input = binascii.hexlify(data_input)
+        data_input = binascii.hexlify(bytearray(data_input))
 
         entry_no = self.entry_num
         start_idx = 0
@@ -187,9 +179,6 @@ class Page(object):
 
             # Encrypt data
             data_bytes = data_input[start_idx:end_idx]
-            if type(data_bytes) == bytes:
-                data_bytes = data_bytes.decode()
-
             data_val = data_bytes + (init_data_val * (data_len_needed - len(data_bytes)))
             encr_data_ret = self.encrypt_entry(data_val, tweak_val, encr_key_input)
             encr_data_to_write = encr_data_to_write + encr_data_ret
@@ -198,12 +187,12 @@ class Page(object):
             end_idx = start_idx + 64
             entry_no += 1
 
+
         return encr_data_to_write
 
 
     def write_entry_to_buf(self, data, entrycount,nvs_obj):
         encr_data = bytearray()
-
         if self.is_encrypt:
             encr_data_ret = self.encrypt_data(data, entrycount,nvs_obj)
             encr_data[0:len(encr_data_ret)] = encr_data_ret
@@ -221,14 +210,12 @@ class Page(object):
 
 
     def set_crc_header(self, entry_struct):
-        crc_data = bytearray(b'28')
+        crc_data = bytearray(28)
         crc_data[0:4] = entry_struct[0:4]
         crc_data[4:28] = entry_struct[8:32]
-        crc_data = bytes(crc_data)
-        crc = zlib.crc32(crc_data, 0xFFFFFFFF)
-        struct.pack_into('<I', entry_struct, 4, crc & 0xFFFFFFFF)
+        crc = zlib.crc32(buffer(crc_data), 0xFFFFFFFF)
+        entry_struct[4:8] = struct.pack('<I', crc & 0xFFFFFFFF)
         return entry_struct
-
 
     def write_varlen_binary_data(self, entry_struct, ns_index, key, data, data_size, total_entry_count,nvs_obj):
         chunk_start = 0
@@ -242,8 +229,8 @@ class Page(object):
             chunk_size = 0
 
             # Get the size available in current page
-            tailroom = (Page.PAGE_PARAMS["max_entries"] - self.entry_num - 1) * Page.SINGLE_ENTRY_SIZE
-            assert tailroom >=0, "Page overflow!!"
+            if self.entry_num < (Page.PAGE_PARAMS["max_entries"] - 1):
+                tailroom = (Page.PAGE_PARAMS["max_entries"] - self.entry_num - 1) * Page.SINGLE_ENTRY_SIZE
 
             # Split the binary data into two and store a chunk of available size onto curr page
             if tailroom < remaining_size:
@@ -258,7 +245,7 @@ class Page(object):
 
             # Calculate no. of entries data chunk will require
             datachunk_rounded_size = (chunk_size + 31) & ~31
-            datachunk_entry_count = datachunk_rounded_size // 32
+            datachunk_entry_count = datachunk_rounded_size / 32
             datachunk_total_entry_count = datachunk_entry_count + 1 # +1 for the entry header
 
             # Set Span
@@ -272,10 +259,9 @@ class Page(object):
             data_chunk =  data[offset:offset + chunk_size]
 
             # Compute CRC of data chunk
-            struct.pack_into('<H', entry_struct, 24, chunk_size)
-            data_chunk = bytes(data_chunk)
+            entry_struct[24:26] = struct.pack('<H', chunk_size)
             crc = zlib.crc32(data_chunk, 0xFFFFFFFF)
-            struct.pack_into('<I', entry_struct, 28, crc & 0xFFFFFFFF)
+            entry_struct[28:32] = struct.pack('<I', crc & 0xFFFFFFFF)
 
             # compute crc of entry header
             entry_struct = self.set_crc_header(entry_struct)
@@ -290,7 +276,7 @@ class Page(object):
             if remaining_size or (tailroom - chunk_size) < Page.SINGLE_ENTRY_SIZE:
                 if page_header[0:4] != Page.FULL:
                     page_state_full_seq = Page.FULL
-                    struct.pack_into('<I', page_header, 0, page_state_full_seq)
+                    page_header[0:4] = struct.pack('<I', page_state_full_seq)
                 nvs_obj.create_new_page()
                 self = nvs_obj.cur_page
 
@@ -300,7 +286,7 @@ class Page(object):
             # All chunks are stored, now store the index
             if not remaining_size:
                 # Initialise data field to 0xff
-                data_array = bytearray(b'\xff')*8
+                data_array = bytearray('\xff')*8
                 entry_struct[24:32] = data_array
 
                 # change type of data to BLOB_IDX
@@ -313,7 +299,7 @@ class Page(object):
                 chunk_index = Page.CHUNK_ANY
                 entry_struct[3] = chunk_index
 
-                struct.pack_into('<I', entry_struct, 24, data_size)
+                entry_struct[24:28] = struct.pack('<I', data_size)
                 entry_struct[28] = chunk_count
                 entry_struct[29] = chunk_start
 
@@ -329,11 +315,9 @@ class Page(object):
 
     def write_single_page_entry(self, entry_struct, data, datalen, data_entry_count, nvs_obj):
         # compute CRC of data
-        struct.pack_into('<H', entry_struct, 24, datalen)
-        if not type(data) == bytes:
-            data = data.encode()
+        entry_struct[24:26] = struct.pack('<H', datalen)
         crc = zlib.crc32(data, 0xFFFFFFFF)
-        struct.pack_into('<I', entry_struct, 28, crc & 0xFFFFFFFF)
+        entry_struct[28:32] = struct.pack('<I', crc & 0xFFFFFFFF)
 
         # compute crc of entry header
         entry_struct = self.set_crc_header(entry_struct)
@@ -363,7 +347,7 @@ class Page(object):
 
         # Calculate no. of entries data will require
         rounded_size = (datalen + 31) & ~31
-        data_entry_count = rounded_size // 32
+        data_entry_count = rounded_size / 32
         total_entry_count = data_entry_count + 1 # +1 for the entry header
 
         # Check if page is already full and new page is needed to be created right away
@@ -372,7 +356,7 @@ class Page(object):
                 raise PageFullError()
 
         # Entry header
-        entry_struct = bytearray(b'\xff')*32
+        entry_struct = bytearray('\xff')*32
         # Set Namespace Index
         entry_struct[0] = ns_index
         # Set Span
@@ -386,9 +370,9 @@ class Page(object):
             entry_struct[2] = data_entry_count + 1
 
         # set key
-        key_array = b'\x00' * 16
+        key_array = bytearray('\x00')*16
         entry_struct[8:24] = key_array
-        entry_struct[8:8 + len(key)] = key.encode()
+        entry_struct[8:8 + len(key)] = key
 
         # set Type
         if encoding == "string":
@@ -396,7 +380,7 @@ class Page(object):
         elif encoding in ["hex2bin", "binary", "base64"]:
             entry_struct[1] = Page.BLOB
 
-        if version == Page.VERSION2 and (encoding in ["hex2bin", "binary", "base64"]):
+        if version == Page.VERSION2 and  (encoding in ["hex2bin", "binary", "base64"]):
                 entry_struct = self.write_varlen_binary_data(entry_struct,ns_index,key,data,\
                 datalen,total_entry_count, nvs_obj)
         else:
@@ -410,40 +394,39 @@ class Page(object):
         if self.entry_num >= Page.PAGE_PARAMS["max_entries"]:
             raise PageFullError()
 
-        entry_struct = bytearray(b'\xff')*32
+        entry_struct = bytearray('\xff')*32
         entry_struct[0] = ns_index # namespace index
         entry_struct[2] = 0x01 # Span
         chunk_index = Page.CHUNK_ANY
         entry_struct[3] = chunk_index
 
         # write key
-        key_array = b'\x00' *16
+        key_array = bytearray('\x00')*16
         entry_struct[8:24] = key_array
-        entry_struct[8:8 + len(key)] = key.encode()
+        entry_struct[8:8 + len(key)] = key
 
         if encoding == "u8":
             entry_struct[1] = Page.U8
-            struct.pack_into('<B', entry_struct, 24, data)
+            entry_struct[24] = struct.pack('<B', data)
         elif encoding == "i8":
             entry_struct[1] = Page.I8
-            struct.pack_into('<b', entry_struct, 24, data)
+            entry_struct[24] = struct.pack('<b', data)
         elif encoding == "u16":
             entry_struct[1] = Page.U16
-            struct.pack_into('<H', entry_struct, 24, data)
+            entry_struct[24:26] = struct.pack('<H', data)
         elif encoding == "u32":
             entry_struct[1] = Page.U32
-            struct.pack_into('<I', entry_struct, 24, data)
+            entry_struct[24:28] = struct.pack('<I', data)
         elif encoding == "i32":
             entry_struct[1] = Page.I32
-            struct.pack_into('<i', entry_struct, 24, data)
+            entry_struct[24:28] = struct.pack('<i', data)
 
         # Compute CRC
-        crc_data = bytearray(b'28')
+        crc_data = bytearray(28)
         crc_data[0:4] = entry_struct[0:4]
         crc_data[4:28] = entry_struct[8:32]
-        crc_data = bytes(crc_data)
-        crc = zlib.crc32(crc_data, 0xFFFFFFFF)
-        struct.pack_into('<I', entry_struct, 4, crc & 0xFFFFFFFF)
+        crc = zlib.crc32(buffer(crc_data), 0xFFFFFFFF)
+        entry_struct[4:8] = struct.pack('<I', crc & 0xFFFFFFFF)
 
         # write to file
         self.write_entry_to_buf(entry_struct, 1,nvs_obj)
@@ -456,8 +439,7 @@ class Page(object):
 NVS class encapsulates all NVS specific operations to create a binary with given key-value pairs. Binary can later be flashed onto device via a flashing utility.
 """
 class NVS(object):
-    def __init__(self, fout, input_size):
-        self.size = input_size
+    def __init__(self, fout):
         self.namespace_idx = 0
         self.page_num = -1
         self.pages = []
@@ -469,31 +451,15 @@ class NVS(object):
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type == None and exc_value == None:
-            # Create pages for remaining available size
-            while True:
-                try:
-                    new_page = self.create_new_page()
-                except InsufficientSizeError:
-                    self.size = None
-                    # Creating the last reserved page
-                    self.create_new_page(is_rsrv_page=True)
-                    break
-
             result = self.get_binary_data()
             self.fout.write(result)
 
-    def create_new_page(self, is_rsrv_page=False):
-        # Update available size as each page is created
-        if self.size == 0:
-            raise InsufficientSizeError("Size parameter is is less than the size of data in csv.Please increase size.")
-        if not is_rsrv_page:
-            self.size = self.size - Page.PAGE_PARAMS["max_size"]
+    def create_new_page(self):
         self.page_num += 1
-        new_page = Page(self.page_num, is_rsrv_page)
+        new_page = Page(self.page_num)
         new_page.version = version
         new_page.is_encrypt = is_encrypt_data
-        if new_page.is_encrypt:
-            new_page.encr_key = key_input
+        new_page.encr_key = key_input
         self.pages.append(new_page)
         self.cur_page = new_page
         return new_page
@@ -509,6 +475,7 @@ class NVS(object):
         except PageFullError:
             new_page = self.create_new_page()
             new_page.write_primitive_data(key, self.namespace_idx, "u8", 0,self)
+            pass
 
     """
     Write key-value pair. Function accepts value in the form of ascii character and converts
@@ -526,8 +493,6 @@ class NVS(object):
             value = binascii.a2b_base64(value)
 
         if encoding == "string":
-            if type(value) == bytes:
-                value = value.decode()
             value += '\0'
 
         encoding = encoding.lower()
@@ -539,12 +504,15 @@ class NVS(object):
             except PageFullError:
                 new_page = self.create_new_page()
                 new_page.write_varlen_data(key, value, encoding, self.namespace_idx,self)
+                pass
         elif encoding in primitive_encodings:
             try:
                 self.cur_page.write_primitive_data(key, int(value), encoding, self.namespace_idx,self)
             except PageFullError:
                 new_page = self.create_new_page()
                 new_page.write_primitive_data(key, int(value), encoding, self.namespace_idx,self)
+                sys.exc_clear()
+                pass
         else:
             raise InputError("%s: Unsupported encoding" % encoding)
 
@@ -570,22 +538,13 @@ class InputError(RuntimeError):
     def __init__(self, e):
         super(InputError, self).__init__(e)
 
-class InsufficientSizeError(RuntimeError):
-    """
-    Represents error when NVS Partition size given is insufficient
-    to accomodate the data in the given csv file
-    """
-    def __init__(self, e):
-       super(InsufficientSizeError, self).__init__(e)
-
-def nvs_open(result_obj, input_size):
+def nvs_open(result_obj):
     """ Wrapper to create and NVS class object. This object can later be used to set key-value pairs
 
     :param result_obj: File/Stream object to dump resultant binary. If data is to be dumped into memory, one way is to use BytesIO object
-    :param input_size: Size of Partition
     :return: NVS class instance
     """
-    return NVS(result_obj, input_size)
+    return NVS(result_obj)
 
 def write_entry(nvs_instance, key, datatype, encoding, value):
     """ Wrapper to set key-value pair in NVS format
@@ -603,7 +562,6 @@ def write_entry(nvs_instance, key, datatype, encoding, value):
         if os.path.isabs(value) == False:
             script_dir = os.path.dirname(__file__)
             abs_file_path = os.path.join(script_dir, value)
-
         with open(abs_file_path, 'rb') as f:
             value = f.read()
 
@@ -620,15 +578,15 @@ def nvs_close(nvs_instance):
     """
     nvs_instance.__exit__(None, None, None)
 
-def nvs_part_gen(input_filename=None, output_filename=None, input_size=None, key_gen=None, encrypt_mode=None, key_file=None, version_no=None):
+def nvs_part_gen(input_filename=None, output_filename=None, key_gen=None, encrypt_mode=None, key_file=None, version_no=None):
     """ Wrapper to generate nvs partition binary
 
     :param input_filename: Name of input file containing data
     :param output_filename: Name of output file to store generated binary
-    :param input_size: Size of partition in bytes (must be multiple of 4096)
     :param key_gen: Enable encryption key generation in encryption mode
     :param encrypt_mode: Enable/Disable encryption mode
     :param key_file: Input file having encryption keys in encryption mode
+    :param version_no: NVS format version
     :return: None
     """
     global version, is_encrypt_data, key_input
@@ -636,23 +594,11 @@ def nvs_part_gen(input_filename=None, output_filename=None, input_size=None, key
     key_input = None
     is_encrypt_data = encrypt_mode
 
-    # Set size
-    input_size = int(input_size, 0)
-
-    if input_size % 4096 !=0:
-        sys.exit("Size of partition (must be multiple of 4096)")
-
     if version == 'v1':
         version = Page.VERSION1
     elif version == 'v2':
         version = Page.VERSION2
-
-    # Update size as a page needs to be reserved of size 4KB
-    input_size = input_size - Page.PAGE_PARAMS["max_size"]
-
-    if input_size == 0:
-        sys.exit("Size parameter is insufficient.")
-
+    
     if is_encrypt_data == 'True':
         is_encrypt_data = True
     elif is_encrypt_data == 'False':
@@ -676,16 +622,16 @@ def nvs_part_gen(input_filename=None, output_filename=None, input_size=None, key
         sys.exit("Invalid. Cannot give --key_file as --encrypt is set to False.")
 
     if key_gen:
-        key_input = ''.join(random.choice('0123456789abcdef') for _ in range(128)).strip()
+        key_input = ''.join(random.choice('0123456789abcdef') for _ in xrange(128))
     elif key_file:
-        with open(key_file, 'rt', encoding='utf8') as key_f:
+        with open(key_file) as key_f:
             key_input = key_f.readline()
             key_input = key_input.strip()
 
-    input_file = open(input_filename, 'rt', encoding='utf8')
+    input_file = open(input_filename, 'rb')
     output_file = open(output_filename, 'wb')
 
-    with nvs_open(output_file, input_size) as nvs_obj:
+    with nvs_open(output_file) as nvs_obj:
         reader = csv.DictReader(input_file, delimiter=',')
         for row in reader:
             try:
@@ -700,21 +646,15 @@ def nvs_part_gen(input_filename=None, output_filename=None, input_size=None, key
     output_file.close()
 
     if is_encrypt_data:
+        output_keys_file = open("encryption_keys.bin",'wb')
         keys_page_buf = bytearray(b'\xff')*Page.PAGE_PARAMS["max_size"]
-        key_bytes = bytearray()
-
-        key_bytes = codecs.decode(key_input, 'hex')
+        key_bytes = key_input.decode('hex')
         key_len = len(key_bytes)
         keys_page_buf[0:key_len] = key_bytes
-
         crc_data = keys_page_buf[0:key_len]
-        crc_data = bytes(crc_data)
-        crc = zlib.crc32(crc_data, 0xFFFFFFFF)
-
-        struct.pack_into('<I', keys_page_buf, key_len,  crc & 0xFFFFFFFF)
-
-        with open("encryption_keys.bin",'wb') as output_keys_file:
-            output_keys_file.write(keys_page_buf)
+        crc = zlib.crc32(buffer(crc_data), 0xFFFFFFFF)
+        keys_page_buf[64:68] = struct.pack('<I', crc & 0xFFFFFFFF)
+        output_keys_file.write(keys_page_buf)
 
 
 
@@ -729,10 +669,6 @@ def main():
             "output",
             help='Path to output converted binary file. Will use stdout if omitted',
             default=sys.stdout)
-
-    parser.add_argument(
-            "size",
-            help='Size of NVS Partition in bytes (must be multiple of 4096)')
 
     parser.add_argument(
             "--version",
@@ -760,15 +696,13 @@ def main():
     args = parser.parse_args()
     input_filename = args.input
     output_filename = args.output
-    input_size = args.size
     version_no = args.version
 
     key_gen = args.keygen
     is_encrypt_data = args.encrypt
     key_file = args.keyfile
 
-    nvs_part_gen(input_filename, output_filename, input_size, key_gen, is_encrypt_data, key_file, version_no)
-
+    nvs_part_gen(input_filename, output_filename, key_gen, is_encrypt_data, key_file, version_no)
 
 
 if __name__ == "__main__":

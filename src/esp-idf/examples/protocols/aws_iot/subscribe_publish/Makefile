@@ -3,7 +3,7 @@
 # project subdirectory.
 #
 
-PROJECT_NAME := subscribe_publish
+PROJECT_NAME := aws_iot_subpub
 
 include $(IDF_PATH)/make/project.mk
 

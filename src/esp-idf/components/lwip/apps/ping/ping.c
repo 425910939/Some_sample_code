@@ -42,14 +42,14 @@
 
 #if LWIP_IPV4 && LWIP_RAW /* don't build if not configured for use in lwipopts.h */
 
-#include "ping/ping.h"
+#include "ping.h"
 
 #include "lwip/mem.h"
 #include "lwip/raw.h"
 #include "lwip/icmp.h"
 #include "lwip/netif.h"
 #include "lwip/sys.h"
-#include "lwip/timeouts.h"
+#include "lwip/timers.h"
 #include "lwip/inet_chksum.h"
 
 #if PING_USE_SOCKETS
@@ -142,21 +142,7 @@ ping_send(int s, ip_addr_t *addr)
   int err;
   struct icmp_echo_hdr *iecho;
   struct sockaddr_in to;
-  size_t ping_size;
-
-#ifdef ESP_PING
-  size_t ping_data_len = 0;
-  esp_ping_get_target(PING_TARGET_DATA_LEN, &ping_data_len, sizeof(ping_data_len));
-
-  if (ping_data_len > 0) {
-    ping_size = sizeof(struct icmp_echo_hdr) + ping_data_len;
-  } else {
-    ping_size = sizeof(struct icmp_echo_hdr) + PING_DATA_SIZE;
-  }
-#else
-  ping_size = sizeof(struct icmp_echo_hdr) + PING_DATA_SIZE;
-#endif
-
+  size_t ping_size = sizeof(struct icmp_echo_hdr) + PING_DATA_SIZE;
   LWIP_ASSERT("ping_size is too big", ping_size <= 0xffff);
   LWIP_ASSERT("ping: expect IPv4 address", !IP_IS_V6(addr));
 
@@ -169,7 +155,7 @@ ping_send(int s, ip_addr_t *addr)
 
   to.sin_len = sizeof(to);
   to.sin_family = AF_INET;
-  inet_addr_from_ip4addr(&to.sin_addr, ip_2_ip4(addr));
+  inet_addr_from_ipaddr(&to.sin_addr, ip_2_ip4(addr));
 
   err = sendto(s, iecho, ping_size, 0, (struct sockaddr*)&to, sizeof(to));
 
@@ -196,7 +182,7 @@ ping_recv(int s)
         LWIP_DEBUGF( PING_DEBUG, ("ping: invalid sin_family\n"));
       } else {
         ip4_addr_t fromaddr;
-        inet_addr_to_ip4addr(&fromaddr, &from.sin_addr);
+        inet_addr_to_ipaddr(&fromaddr, &from.sin_addr);
         iphdr = (struct ip_hdr *)buf;
         iecho = (struct icmp_echo_hdr *)(buf + (IPH_HL(iphdr) * 4));
  
@@ -275,17 +261,6 @@ ping_thread(void *arg)
   ret = setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
   LWIP_ASSERT("setting receive timeout failed", ret == 0);
   LWIP_UNUSED_ARG(ret);
-
-#ifdef ESP_PING
-  int tos = 0;
-  esp_ping_get_target(PING_TARGET_IP_TOS, &tos, sizeof(int));
-  if (tos > 0) {
-    tos <<= 5;
-    ret = setsockopt(s, IPPROTO_IP, IP_TOS, &tos, sizeof(tos));
-    LWIP_ASSERT("setting IP_TOS failed", ret == 0);
-    LWIP_UNUSED_ARG(ret);
-  }
-#endif
 
   while (1) {
 #ifdef ESP_PING

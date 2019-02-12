@@ -88,9 +88,17 @@ typedef struct uncached_tag_entry_{
 
 static esp_log_level_t s_log_default_level = ESP_LOG_VERBOSE;
 static SLIST_HEAD(log_tags_head , uncached_tag_entry_) s_log_tags = SLIST_HEAD_INITIALIZER(s_log_tags);
+
+#if CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
+static cached_tag_entry_t EXT_RAM_ATTR s_log_cache[TAG_CACHE_SIZE];
+static uint32_t EXT_RAM_ATTR s_log_cache_max_generation;
+static uint32_t EXT_RAM_ATTR s_log_cache_entry_count;
+#else
 static cached_tag_entry_t s_log_cache[TAG_CACHE_SIZE];
 static uint32_t s_log_cache_max_generation = 0;
 static uint32_t s_log_cache_entry_count = 0;
+#endif
+
 static vprintf_like_t s_log_print_func = &vprintf;
 static SemaphoreHandle_t s_log_mutex = NULL;
 

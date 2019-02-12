@@ -40,13 +40,6 @@ macro(idf_set_global_variables)
 
     # path to idf.py tool
     set(IDFTOOL ${PYTHON} "${IDF_PATH}/tools/idf.py")
-
-    # Temporary trick to support both gcc5 and gcc8 builds
-    if(CMAKE_C_COMPILER_VERSION VERSION_EQUAL 5.2.0)
-        set(GCC_NOT_5_2_0 0)
-    else()
-        set(GCC_NOT_5_2_0 1)
-    endif()
 endmacro()
 
 # Add all the IDF global compiler & preprocessor options
@@ -93,30 +86,6 @@ function(idf_set_global_compiler_options)
         -Wno-old-style-declaration
         )
 
-    if(CONFIG_DISABLE_GCC8_WARNINGS)
-        add_compile_options(
-            -Wno-parentheses
-            -Wno-sizeof-pointer-memaccess
-            -Wno-clobbered
-        )
-
-        # doesn't use GCC_NOT_5_2_0 because idf_set_global_variables was not called before
-        if(NOT CMAKE_C_COMPILER_VERSION VERSION_EQUAL 5.2.0)
-            add_compile_options(
-                -Wno-format-overflow
-                -Wno-stringop-truncation
-                -Wno-misleading-indentation
-                -Wno-cast-function-type
-                -Wno-implicit-fallthrough
-                -Wno-unused-const-variable
-                -Wno-switch-unreachable
-                -Wno-format-truncation
-                -Wno-memset-elt-size
-                -Wno-int-in-bool-context
-            )
-        endif()
-    endif()
-
     # Stack protection
     if(NOT BOOTLOADER_BUILD)
         if(CONFIG_STACK_CHECK_NORM)
@@ -145,8 +114,6 @@ function(idf_set_global_compiler_options)
         endif()
     endif()
 
-    # Temporary trick to support both gcc5 and gcc8 builds
-    add_definitions(-DGCC_NOT_5_2_0=${GCC_NOT_5_2_0})
 endfunction()
 
 
@@ -167,9 +134,8 @@ function(idf_verify_environment)
     # Warn if the toolchain version doesn't match
     #
     # TODO: make these platform-specific for diff toolchains
-    get_expected_ctng_version(expected_toolchain expected_gcc)
-    gcc_version_check("${expected_gcc}")
-    crosstool_version_check("${expected_toolchain}")
+    gcc_version_check("5.2.0")
+    crosstool_version_check("1.22.0-80-g6c4433a")
 
 endfunction()
 
@@ -188,7 +154,10 @@ function(idf_add_executable)
         # Create a dummy file to work around CMake requirement of having a source
         # file while adding an executable
         add_executable(${exe_target} "${CMAKE_CURRENT_BINARY_DIR}/dummy_main_src.c")
-        file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/dummy_main_src.c)
+        add_custom_command(OUTPUT dummy_main_src.c
+            COMMAND ${CMAKE_COMMAND} -E touch dummy_main_src.c
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+            VERBATIM)
 
         add_custom_target(dummy_main_src DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/dummy_main_src.c)
 
@@ -247,11 +216,7 @@ endfunction()
 # Running git_describe() here automatically triggers rebuilds
 # if the ESP-IDF git version changes
 function(idf_get_git_revision)
-    if(EXISTS "${IDF_PATH}/version.txt")
-        file(STRINGS "${IDF_PATH}/version.txt" IDF_VER)
-    else()
-        git_describe(IDF_VER "${IDF_PATH}")
-    endif()
+    git_describe(IDF_VER "${IDF_PATH}")
     add_definitions(-DIDF_VER=\"${IDF_VER}\")
     git_submodule_check("${IDF_PATH}")
     set(IDF_VER ${IDF_VER} PARENT_SCOPE)

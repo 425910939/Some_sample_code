@@ -56,12 +56,6 @@ the adv packet will be discarded until the memory is restored. */
 #define BT_HCI_UART_BAUDRATE_DEFAULT                921600
 #endif /* BT_HCI_UART_BAUDRATE_DEFAULT */
 
-#ifdef CONFIG_SCAN_DUPLICATE_TYPE
-#define SCAN_DUPLICATE_TYPE_VALUE  CONFIG_SCAN_DUPLICATE_TYPE
-#else
-#define SCAN_DUPLICATE_TYPE_VALUE  0
-#endif
-
 /* normal adv cache size */
 #ifdef CONFIG_DUPLICATE_SCAN_CACHE_SIZE
 #define NORMAL_SCAN_DUPLICATE_CACHE_SIZE            CONFIG_DUPLICATE_SCAN_CACHE_SIZE
@@ -106,7 +100,6 @@ the adv packet will be discarded until the memory is restored. */
     .hci_uart_no = BT_HCI_UART_NO_DEFAULT,                                 \
     .hci_uart_baudrate = BT_HCI_UART_BAUDRATE_DEFAULT,                     \
     .scan_duplicate_mode = SCAN_DUPLICATE_MODE,                            \
-    .scan_duplicate_type = SCAN_DUPLICATE_TYPE_VALUE,                     \
     .normal_adv_size = NORMAL_SCAN_DUPLICATE_CACHE_SIZE,                   \
     .mesh_adv_size = MESH_DUPLICATE_SCAN_CACHE_SIZE,                       \
     .send_adv_reserved_size = SCAN_SEND_ADV_RESERVED_SIZE,                 \
@@ -135,8 +128,7 @@ typedef struct {
     uint8_t controller_task_prio;           /*!< Bluetooth controller task priority */
     uint8_t hci_uart_no;                    /*!< If use UART1/2 as HCI IO interface, indicate UART number */
     uint32_t hci_uart_baudrate;             /*!< If use UART1/2 as HCI IO interface, indicate UART baudrate */
-    uint8_t scan_duplicate_mode;            /*!< scan duplicate mode */
-    uint8_t scan_duplicate_type;            /*!< scan duplicate type */
+    uint8_t scan_duplicate_mode;            /*!< If use UART1/2 as HCI IO interface, indicate UART baudrate */
     uint16_t normal_adv_size;               /*!< Normal adv size for scan duplicate */
     uint16_t mesh_adv_size;                 /*!< Mesh adv size for scan duplicate */
     uint16_t send_adv_reserved_size;        /*!< Controller minimum memory value */
@@ -149,7 +141,7 @@ typedef struct {
      * It will be overwrite with a constant value which in menuconfig or from a macro.
      * So, do not modify the value when esp_bt_controller_init()
      */
-    uint8_t bt_max_sync_conn;               /*!< BR/EDR maximum ACL connection numbers. Effective in menuconfig */
+    uint8_t bt_max_sync_conn;               /*!< BR/EDR maxium ACL connection numbers. Effective in menuconfig */
     uint32_t magic;                         /*!< Magic number */
 } esp_bt_controller_config_t;
 
@@ -241,7 +233,7 @@ esp_power_level_t esp_ble_tx_power_get(esp_ble_power_type_t power_type);
  *         BR/EDR power control will use the power in range of minimum value and maximum value.
  *         The power level will effect the global BR/EDR TX power, such inquire, page, connection and so on.
  *         Please call the function after esp_bt_controller_enable and before any function which cause RF do TX.
- *         So you can call the function before doing discovery, profile init and so on.
+ *         So you can call the function can before do discover, beofre profile init and so on.
  *         For example, if you want BR/EDR use the new TX power to do inquire, you should call
  *         this function before inquire. Another word, If call this function when BR/EDR is in inquire(ING),
  *         please do inquire again after call this function.
@@ -332,7 +324,7 @@ bool esp_vhci_host_check_send_available(void);
 void esp_vhci_host_send_packet(uint8_t *data, uint16_t len);
 
 /** @brief esp_vhci_host_register_callback
- * register the vhci reference callback
+ * register the vhci referece callback, the call back
  * struct defined by vhci_host_callback structure.
  * @param callback esp_vhci_host_callback type variable
  * @return ESP_OK - success, ESP_FAIL - failed
@@ -340,61 +332,32 @@ void esp_vhci_host_send_packet(uint8_t *data, uint16_t len);
 esp_err_t esp_vhci_host_register_callback(const esp_vhci_host_callback_t *callback);
 
 /** @brief esp_bt_controller_mem_release
- * release the controller memory as per the mode
- *
- * This function releases the BSS, data and other sections of the controller to heap. The total size is about 70k bytes.
+ * release the memory by mode, if never use the bluetooth mode
+ * it can release the .bss, .data and other section to heap.
+ * The total size is about 70k bytes.
  *
  * esp_bt_controller_mem_release(mode) should be called only before esp_bt_controller_init()
  * or after esp_bt_controller_deinit().
  *
- * Note that once BT controller memory is released, the process cannot be reversed. It means you cannot use the bluetooth
+ * Note that once BT controller memory is released, the process cannot be reversed. It means you can not use the bluetooth
  * mode which you have released by this function.
  *
  * If your firmware will later upgrade the Bluetooth controller mode (BLE -> BT Classic or disabled -> enabled)
  * then do not call this function.
  *
  * If the app calls esp_bt_controller_enable(ESP_BT_MODE_BLE) to use BLE only then it is safe to call
- * esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT) at initialization time to free unused BT Classic memory.
+ * esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT) at initialisation time to free unused BT Classic memory.
  *
- * If the mode is ESP_BT_MODE_BTDM, then it may be useful to call API esp_bt_mem_release(ESP_BT_MODE_BTDM) instead,
- * which internally calls esp_bt_controller_mem_release(ESP_BT_MODE_BTDM) and additionally releases the BSS and data
- * consumed by the BT/BLE host stack to heap. For more details about usage please refer to the documentation of
- * esp_bt_mem_release() function
+ * If user never use bluetooth controller, could call esp_bt_controller_mem_release(ESP_BT_MODE_BTDM)
+ * before esp_bt_controller_init or after esp_bt_controller_deinit.
+ *
+ * For example, user only use bluetooth to config SSID and PASSWORD of WIFI, after config, will never use bluetooth.
+ * Then, could call esp_bt_controller_mem_release(ESP_BT_MODE_BTDM) after esp_bt_controller_deinit.
  *
  * @param mode : the mode want to release memory
  * @return ESP_OK - success, other - failed
  */
 esp_err_t esp_bt_controller_mem_release(esp_bt_mode_t mode);
-
-/** @brief esp_bt_mem_release
- * release controller memory and BSS and data section of the BT/BLE host stack as per the mode
- *
- * This function first releases controller memory by internally calling esp_bt_controller_mem_release().
- * Additionally, if the mode is set to ESP_BT_MODE_BTDM, it also releases the BSS and data consumed by the BT/BLE host stack to heap
- *
- * Note that once BT memory is released, the process cannot be reversed. It means you cannot use the bluetooth
- * mode which you have released by this function.
- *
- * If your firmware will later upgrade the Bluetooth controller mode (BLE -> BT Classic or disabled -> enabled)
- * then do not call this function.
- *
- * If you never intend to use bluetooth in a current boot-up cycle, you can call esp_bt_mem_release(ESP_BT_MODE_BTDM)
- * before esp_bt_controller_init or after esp_bt_controller_deinit.
- *
- * For example, if a user only uses bluetooth for setting the WiFi configuration, and does not use bluetooth in the rest of the product operation".
- * In such cases, after receiving the WiFi configuration, you can disable/deinit bluetooth and release its memory.
- * Below is the sequence of APIs to be called for such scenarios:
- *
- *      esp_bluedroid_disable();
- *      esp_bluedroid_deinit();
- *      esp_bt_controller_disable();
- *      esp_bt_controller_deinit();
- *      esp_bt_mem_release(ESP_BT_MODE_BTDM);
- *
- * @param mode : the mode whose memory is to be released
- * @return ESP_OK - success, other - failed
- */
-esp_err_t esp_bt_mem_release(esp_bt_mode_t mode);
 
 /**
  * @brief enable bluetooth to enter modem sleep
@@ -448,22 +411,9 @@ bool esp_bt_controller_is_sleeping(void);
  * Note that after this request, bluetooth controller may again enter sleep as long as the modem sleep is enabled
  *
  * Profiling shows that it takes several milliseconds to wakeup from modem sleep after this request.
- * Generally it takes longer if 32kHz XTAL is used than the main XTAL, due to the lower frequency of the former as the bluetooth low power clock source.
+ * Generally it takes longer if 32kHz XTAL is used than the main XTAL, due to the lower frequncy of the former as the bluetooth low power clock source.
  */
 void esp_bt_controller_wakeup_request(void);
-
-/**
- * @brief Manually clear scan duplicate list
- * 
- * Note that scan duplicate list will be automatically cleared when the maximum amount of device in the filter is reached
- * the amount of device in the filter can be configured in menuconfig.
- * 
- * 
- * @return
- *                  - ESP_OK : success
- *                  - other  : failed
- */
-esp_err_t esp_ble_scan_dupilcate_list_flush(void);
 
 #ifdef __cplusplus
 }

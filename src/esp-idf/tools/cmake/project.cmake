@@ -29,15 +29,6 @@ include(idf_functions)
 
 set_default(PYTHON "python")
 
-if(NOT PYTHON_DEPS_CHECKED AND NOT BOOTLOADER_BUILD)
-    message(STATUS "Checking Python dependencies...")
-    execute_process(COMMAND "${PYTHON}" "${IDF_PATH}/tools/check_python_dependencies.py"
-        RESULT_VARIABLE result)
-    if(NOT result EQUAL 0)
-        message(FATAL_ERROR "Some Python dependencies must be installed. Check above message for details.")
-    endif()
-endif()
-
 # project
 #
 # This macro wraps the cmake 'project' command to add
@@ -56,17 +47,15 @@ macro(project name)
     # Set global variables used by rest of the build
     idf_set_global_variables()
 
-    # Sort the components list, as it may be found via filesystem
-    # traversal and therefore in a non-deterministic order
-    list(SORT COMPONENTS)
-
+    # Establish dependencies for components in the build
+    # (this happens before we even generate config...)
+    if(COMPONENTS)
+        # Make sure if an explicit list of COMPONENTS is given, it contains the "common" component requirements
+        # (otherwise, if COMPONENTS is empty then all components will be included in the build.)
+        set(COMPONENTS "${COMPONENTS} ${COMPONENT_REQUIRES_COMMON}")
+    endif()
     execute_process(COMMAND "${CMAKE_COMMAND}"
         -D "COMPONENTS=${COMPONENTS}"
-        -D "COMPONENT_REQUIRES_COMMON=${COMPONENT_REQUIRES_COMMON}"
-        -D "EXCLUDE_COMPONENTS=${EXCLUDE_COMPONENTS}"
-        -D "TEST_COMPONENTS=${TEST_COMPONENTS}"
-        -D "TEST_EXCLUDE_COMPONENTS=${TEST_EXCLUDE_COMPONENTS}"
-        -D "TESTS_ALL=${TESTS_ALL}"
         -D "DEPENDENCIES_FILE=${CMAKE_BINARY_DIR}/component_depends.cmake"
         -D "COMPONENT_DIRS=${COMPONENT_DIRS}"
         -D "BOOTLOADER_BUILD=${BOOTLOADER_BUILD}"
@@ -86,14 +75,6 @@ macro(project name)
     message(STATUS "Component names: ${BUILD_COMPONENTS_SPACES}")
     unset(BUILD_COMPONENTS_SPACES)
     message(STATUS "Component paths: ${BUILD_COMPONENT_PATHS}")
-
-    # Print list of test components
-    if(TESTS_ALL EQUAL 1 OR TEST_COMPONENTS)
-        string(REPLACE ";" " " BUILD_TEST_COMPONENTS_SPACES "${BUILD_TEST_COMPONENTS}")
-        message(STATUS "Test component names: ${BUILD_TEST_COMPONENTS_SPACES}")
-        unset(BUILD_TEST_COMPONENTS_SPACES)
-        message(STATUS "Test component paths: ${BUILD_TEST_COMPONENT_PATHS}")
-    endif()
 
     kconfig_set_variables()
 
@@ -136,15 +117,7 @@ macro(project name)
     # Add each component to the build as a library
     #
     foreach(COMPONENT_PATH ${BUILD_COMPONENT_PATHS})
-        list(FIND BUILD_TEST_COMPONENT_PATHS ${COMPONENT_PATH} idx)
-
-        if(NOT idx EQUAL -1)
-            list(GET BUILD_TEST_COMPONENTS ${idx} test_component)
-            set(COMPONENT_NAME ${test_component})
-        else()
-            get_filename_component(COMPONENT_NAME ${COMPONENT_PATH} NAME)
-        endif()
-
+        get_filename_component(COMPONENT_NAME ${COMPONENT_PATH} NAME)
         add_subdirectory(${COMPONENT_PATH} ${COMPONENT_NAME})
     endforeach()
     unset(COMPONENT_NAME)

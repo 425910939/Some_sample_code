@@ -42,7 +42,7 @@
 
 static const esp_spp_mode_t esp_spp_mode = ESP_SPP_MODE_VFS;
 
-static const esp_spp_sec_t sec_mask = ESP_SPP_SEC_AUTHENTICATE;
+static const esp_spp_sec_t sec_mask = ESP_SPP_SEC_NONE;
 static const esp_spp_role_t role_slave = ESP_SPP_ROLE_SLAVE;
 
 #define SPP_DATA_LEN 100
@@ -67,11 +67,8 @@ static void spp_read_handle(void * param)
     spp_wr_task_shut_down();
 }
 
-static void esp_spp_cb(uint16_t e, void *p)
+static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
 {
-    esp_spp_cb_event_t event = e;
-    esp_spp_cb_param_t *param = p;
-
     switch (event) {
     case ESP_SPP_INIT_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_INIT_EVT");
@@ -105,7 +102,7 @@ static void esp_spp_cb(uint16_t e, void *p)
 
 static void esp_spp_stack_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
 {
-    spp_task_work_dispatch(esp_spp_cb, event, param, sizeof(esp_spp_cb_param_t), NULL);
+    spp_task_work_dispatch((spp_task_cb_t)esp_spp_cb, event, param, sizeof(esp_spp_cb_param_t), NULL);
 }
 
 void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
@@ -137,16 +134,6 @@ void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
         }
         break;
     }
-    case ESP_BT_GAP_CFM_REQ_EVT:
-        ESP_LOGI(SPP_TAG, "ESP_BT_GAP_CFM_REQ_EVT Please compare the numeric value: %d", param->cfm_req.num_val);
-        esp_bt_gap_ssp_confirm_reply(param->cfm_req.bda, true);
-        break;
-    case ESP_BT_GAP_KEY_NOTIF_EVT:
-        ESP_LOGI(SPP_TAG, "ESP_BT_GAP_KEY_NOTIF_EVT passkey:%d", param->key_notif.passkey);
-        break;
-    case ESP_BT_GAP_KEY_REQ_EVT:
-        ESP_LOGI(SPP_TAG, "ESP_BT_GAP_KEY_REQ_EVT Please enter passkey!");
-        break;
     default: {
         ESP_LOGI(SPP_TAG, "event: %d", event);
         break;
@@ -187,7 +174,7 @@ void app_main()
         return;
     }
 
-    if (esp_bt_gap_register_callback(esp_bt_gap_cb) != ESP_OK) {
+    if ((ret = esp_bt_gap_register_callback(esp_bt_gap_cb)) != ESP_OK) {
         ESP_LOGE(SPP_TAG, "%s gap register failed: %s\n", __func__, esp_err_to_name(ret));
         return;
     }
@@ -203,11 +190,6 @@ void app_main()
         ESP_LOGE(SPP_TAG, "%s spp init failed", __func__);
         return;
     }
-
-    /* Set default parameters for Secure Simple Pairing */
-    esp_bt_sp_param_t param_type = ESP_BT_SP_IOCAP_MODE;
-    esp_bt_io_cap_t iocap = ESP_BT_IO_CAP_IO;
-    esp_bt_gap_set_security_param(param_type, &iocap, sizeof(uint8_t));
 
     /*
      * Set default parameters for Legacy Pairing

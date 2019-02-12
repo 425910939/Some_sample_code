@@ -90,7 +90,6 @@ TEST_C(ShadowDeltaTest, registerDeltaSuccess) {
 	windowHandler.pKey = "window";
 	windowHandler.type = SHADOW_JSON_BOOL;
 	windowHandler.pData = &windowOpenData;
-	windowHandler.dataLength = sizeof(bool);
 
 	params.payloadLen = strlen(deltaJSONString);
 	params.payload = deltaJSONString;
@@ -114,7 +113,7 @@ TEST_C(ShadowDeltaTest, registerDeltaSuccess) {
 TEST_C(ShadowDeltaTest, registerDeltaInt) {
 	IoT_Error_t ret_val = SUCCESS;
 	jsonStruct_t intHandler;
-	int32_t intData = 0;
+	int intData = 0;
 	char deltaJSONString[] = "{\"state\":{\"delta\":{\"length\":23}},\"version\":1}";
 	IoT_Publish_Message_Params params;
 
@@ -124,7 +123,6 @@ TEST_C(ShadowDeltaTest, registerDeltaInt) {
 	intHandler.pKey = "length";
 	intHandler.type = SHADOW_JSON_INT32;
 	intHandler.pData = &intData;
-	intHandler.dataLength = sizeof(int32_t);
 
 	params.payloadLen = strlen(deltaJSONString);
 	params.payload = deltaJSONString;
@@ -145,7 +143,7 @@ TEST_C(ShadowDeltaTest, registerDeltaInt) {
 TEST_C(ShadowDeltaTest, registerDeltaIntNoCallback) {
 	IoT_Error_t ret_val = SUCCESS;
 	jsonStruct_t intHandler;
-	int32_t intData = 0;
+	int intData = 0;
 	char deltaJSONString[] = "{\"state\":{\"delta\":{\"length_nocb\":23}},\"version\":1}";
 	IoT_Publish_Message_Params params;
 
@@ -155,7 +153,6 @@ TEST_C(ShadowDeltaTest, registerDeltaIntNoCallback) {
 	intHandler.pKey = "length_nocb";
 	intHandler.type = SHADOW_JSON_INT32;
 	intHandler.pData = &intData;
-	intHandler.dataLength = sizeof(int32_t);
 
 	params.payloadLen = strlen(deltaJSONString);
 	params.payload = deltaJSONString;
@@ -186,7 +183,6 @@ TEST_C(ShadowDeltaTest, DeltaNestedObject) {
 	nestedObjectHandler.pKey = "sensors";
 	nestedObjectHandler.type = SHADOW_JSON_OBJECT;
 	nestedObjectHandler.pData = &nestedObject;
-	nestedObjectHandler.dataLength = 100;
 
 	snprintf(deltaJSONString, 100, "{\"state\":{\"delta\":{\"%s\":%s}},\"version\":1}", nestedObjectHandler.pKey,
 			sentNestedObjectData);
@@ -221,7 +217,6 @@ TEST_C(ShadowDeltaTest, DeltaVersionIgnoreOldVersion) {
 	nestedObjectHandler.pKey = "sensors";
 	nestedObjectHandler.type = SHADOW_JSON_OBJECT;
 	nestedObjectHandler.pData = &nestedObject;
-	nestedObjectHandler.dataLength = 100;
 
 	snprintf(deltaJSONString, 100, "{\"state\":{\"delta\":{\"%s\":%s}},\"version\":1}", nestedObjectHandler.pKey,
 			sentNestedObjectData);

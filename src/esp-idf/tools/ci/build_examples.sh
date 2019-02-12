@@ -75,8 +75,7 @@ else
     [ -z ${JOB_PATTERN} ] && die "JOB_PATTERN is bad"
 
     # parse number 'NUM' at the end of string 'some_your_text_NUM'
-    # NOTE: Getting rid of the leading zero to get the decimal
-    JOB_NUM=$( echo ${JOB_NAME} | sed -n -r 's/^.*_0*([0-9]+)$/\1/p' )
+    JOB_NUM=$( echo ${JOB_NAME} | sed -n -r 's/^.*_([0-9]+)$/\1/p' )
     [ -z ${JOB_NUM} ] && die "JOB_NUM is bad"
 
     # count number of the jobs
@@ -121,18 +120,13 @@ build_example () {
         local BUILDLOG=${LOG_PATH}/ex_${ID}_log.txt
         touch ${BUILDLOG}
 
-        local FLASH_ARGS=build/download.config
-
         make clean >>${BUILDLOG} 2>&1 &&
         make defconfig >>${BUILDLOG} 2>&1 &&
         make all >>${BUILDLOG} 2>&1 &&
-        make print_flash_cmd >${FLASH_ARGS}.full 2>>${BUILDLOG} ||
+        ( make print_flash_cmd | tail -n 1 >build/download.config ) >>${BUILDLOG} 2>&1 ||
         {
             RESULT=$?; FAILED_EXAMPLES+=" ${EXAMPLE_NAME}" ;
         }
-
-        tail -n 1 ${FLASH_ARGS}.full > ${FLASH_ARGS} || :
-        test -s ${FLASH_ARGS} || die "Error: ${FLASH_ARGS} file is empty"
 
         cat ${BUILDLOG}
     popd
@@ -163,18 +157,8 @@ echo -e "\nFound issues:"
 #       Ignore the next messages:
 # "error.o" or "-Werror" in compiler's command line
 # "reassigning to symbol" or "changes choice state" in sdkconfig
-# 'Compiler and toochain versions is not supported' from make/project.mk
-IGNORE_WARNS="\
-library/error\.o\
-\|\ -Werror\
-\|error\.d\
-\|reassigning to symbol\
-\|changes choice state\
-\|Compiler version is not supported\
-\|Toolchain version is not supported\
-"
-
-sort -u "${LOG_SUSPECTED}" | grep -v "${IGNORE_WARNS}" \
+sort -u "${LOG_SUSPECTED}" | \
+grep -v "library/error.o\|\ -Werror\|reassigning to symbol\|changes choice state" \
     && RESULT=$RESULT_ISSUES \
     || echo -e "\tNone"
 

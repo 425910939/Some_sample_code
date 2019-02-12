@@ -31,6 +31,10 @@
 #include "osi/mutex.h"
 #include "esp_bt.h"
 
+#if CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY
+static tBTA_BLE_ADV_DATA EXT_RAM_ATTR gl_bta_adv_data;
+static tBTA_BLE_ADV_DATA EXT_RAM_ATTR gl_bta_scan_rsp_data;
+#else
 static tBTA_BLE_ADV_DATA gl_bta_adv_data;
 static tBTA_BLE_ADV_DATA gl_bta_scan_rsp_data;
 #if SCAN_QUEUE_CONGEST_CHECK
@@ -45,6 +49,8 @@ static uint16_t btc_adv_list_count = 0;
 
 #define  BTC_ADV_LIST_MAX_LENGTH    50
 #define  BTC_ADV_LIST_MAX_COUNT     200
+#endif
+
 #endif
 
 static inline void btc_gap_ble_cb_to_app(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
@@ -452,6 +458,10 @@ static void btc_ble_start_advertising (esp_ble_adv_params_t *ble_adv_params, tBT
         status = ESP_BT_STATUS_PARM_INVALID;
         BTC_TRACE_ERROR("Invalid advertisting channel map parameters.\n");
     }
+    if (!BLE_ISVALID_PARAM(ble_adv_params->peer_addr_type, BLE_ADDR_TYPE_PUBLIC, BLE_ADDR_TYPE_RANDOM)) {
+        status = ESP_BT_STATUS_PARM_INVALID;
+        BTC_TRACE_ERROR("Invalid advertisting peer address type parameters.\n");
+    }
     if(status != ESP_BT_STATUS_SUCCESS) {
         if(start_adv_cback) {
             start_adv_cback(status);
@@ -831,17 +841,12 @@ static void btc_ble_set_rand_addr (BD_ADDR rand_addr, tBTA_SET_RAND_ADDR_CBACK *
             BTA_DmSetRandAddress(rand_addr, btc_set_rand_addr_callback);
         } else {
             btc_set_rand_addr_callback(BTM_INVALID_STATIC_RAND_ADDR);
-            BTC_TRACE_ERROR("Invalid random address, the high bit should be 0b11, all bits of the random part shall not be to 1 or 0");
+            BTC_TRACE_ERROR("Invalid random address, the high bit should be 0b11, bits of the random part shall not be all 1 or 0");
         }
     } else {
         btc_set_rand_addr_callback(BTM_INVALID_STATIC_RAND_ADDR);
         BTC_TRACE_ERROR("Invalid random addressm, the address value is NULL");
     }
-}
-
-static void btc_ble_clear_rand_addr (void)
-{
-    BTA_DmClearRandAddress();
 }
 
 static void btc_ble_config_local_privacy(bool privacy_enable, tBTA_SET_LOCAL_PRIVACY_CBACK *set_local_privacy_cback)
@@ -1046,10 +1051,6 @@ void btc_gap_ble_call_handler(btc_msg_t *msg)
         BD_ADDR bd_addr;
         memcpy(bd_addr, arg->set_rand_addr.rand_addr, sizeof(BD_ADDR));
         btc_ble_set_rand_addr(bd_addr, btc_set_rand_addr_callback);
-        break;
-    }
-    case BTC_GAP_BLE_ACT_CLEAR_RAND_ADDRESS: {
-        btc_ble_clear_rand_addr();
         break;
     }
     case BTC_GAP_BLE_ACT_CONFIG_LOCAL_PRIVACY:

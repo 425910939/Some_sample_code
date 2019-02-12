@@ -1,41 +1,4 @@
 # Change Log
-
-## [3.0.1](https://github.com/aws/aws-iot-device-sdk-embedded-C/releases/tag/v3.0.1) (May 10, 2018)
-
-Bugfixes:
-
-  - [#167], [#168] Fixed issues reported by Coverity Scan.
-  - [#177] Fixes a memory corruption bug and handling of timeouts.
-
-Other:
-
-  - Add .travis.yml for Travis CI.
-  - Removed C++ sample.
-  - Removed includes of `inttypes.h`, which doesn't exist on some systems.
-  - [#175] Added comments on static allocation of MQTT topics.
-
-## [3.0.0](https://github.com/aws/aws-iot-device-sdk-embedded-C/releases/tag/v3.0.0) (Apr 17, 2018)
-
-Bugfixes:
-
-  - [#152] Fixes potential buffer overflows in `parseStringValue` by requiring a size parameter in `jsonStruct_t`.
-  - [#155] Fixes other memory corruption bugs; also improves stability.
-
-The two bug fixes above are not backwards compatible with v2.3.0.  Please see [README.md](README.md#migrating-from-2x-to-3x) for details on migrating to v3.0.0.
-
-## [2.3.0](https://github.com/aws/aws-iot-device-sdk-embedded-C/releases/tag/v2.3.0) (Mar 21, 2018)
-
-New Features:
-
-  - Add [AWS IoT Jobs](https://docs.aws.amazon.com/iot/latest/developerguide/iot-jobs.html) support.
-  - Use AWS IoT Core support for MQTT over port 443. MQTT connection now defaults to port 443.
-
-Pull requests:
-
-  - [#124](https://github.com/aws/aws-iot-device-sdk-embedded-C/pull/124) - Thing Shadow: Fix potential shadow buffer overflow
-  - [#135](https://github.com/aws/aws-iot-device-sdk-embedded-C/pull/135) - mbedtls_wrap: Fix unintialized variable usage
-  - Fix bugs in long-running integration tests.
-
 ## [2.2.1](https://github.com/aws/aws-iot-device-sdk-embedded-C/releases/tag/v2.2.1) (Dec 26, 2017)
 
 Bugfixes:

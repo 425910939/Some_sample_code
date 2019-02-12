@@ -154,6 +154,7 @@ if(CONFIG_BT_ENABLED)
                    "bluedroid/external/sbc/encoder/srce/sbc_enc_coeffs.c"
                    "bluedroid/external/sbc/encoder/srce/sbc_encoder.c"
                    "bluedroid/external/sbc/encoder/srce/sbc_packing.c"
+                   "bluedroid/hci/buffer_allocator.c"
                    "bluedroid/hci/hci_audio.c"
                    "bluedroid/hci/hci_hal_h4.c"
                    "bluedroid/hci/hci_layer.c"
@@ -277,10 +278,6 @@ set(COMPONENT_PRIV_REQUIRES nvs_flash)
 register_component()
 
 if(CONFIG_BT_ENABLED)
-    if(GCC_NOT_5_2_0)
-        component_compile_options(-Wno-implicit-fallthrough -Wno-unused-const-variable)
-    endif()
-
     target_link_libraries(bt "-L${CMAKE_CURRENT_LIST_DIR}/lib")
     target_link_libraries(bt btdm_app)
 endif()

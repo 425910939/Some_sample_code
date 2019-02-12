@@ -76,7 +76,7 @@ An example project directory tree might look like this::
 
 This example "myProject" contains the following elements:
 
-- A top-level project Makefile. This Makefile sets the ``PROJECT_NAME`` variable and (optionally) defines
+- A top-level project Makefile. This Makefile set the ``PROJECT_NAME`` variable and (optionally) defines
   other project-wide make variables. It includes the core ``$(IDF_PATH)/make/project.mk`` makefile which
   implements the rest of the ESP-IDF build system.
 
@@ -124,7 +124,6 @@ These variables all have default values that can be overridden for custom behavi
 - ``EXTRA_COMPONENT_DIRS``: Optional list of additional directories to search for components.
 - ``COMPONENTS``: A list of component names to build into the project. Defaults to all components found in the COMPONENT_DIRS directories.
 - ``EXCLUDE_COMPONENTS``: Optional list of component names to exclude during the build process. Note that this decreases build time, but not binary size.
-- ``TEST_EXCLUDE_COMPONENTS``: Optional list of component names to exclude during the build process of unit tests.
 
 Any paths in these Makefile variables should be absolute paths. You can convert relative paths using ``$(PROJECT_PATH)/xxx``, ``$(IDF_PATH)/xxx``, or use the Make function ``$(abspath xxx)``.
 

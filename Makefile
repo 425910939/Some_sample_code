@@ -1,8 +1,9 @@
 #设置头文件的目录
-INCLUDE = -I/mnt/onego2017/dongshaoyu/demo/include
+PRO_PATH=$(shell pwd)
+INCLUDE = -I$(PRO_PATH)/include
 #设置需要连接的库和库的地址
 LIB=-lcjson -lssl -lcrypto
-LIBPATH= -L/mnt/onego2017/dongshaoyu/demo/lib
+LIBPATH= -L$(PRO_PATH)/lib
 #设置编译器
 CC:=gcc 
 #debug文件夹里的makefile文件需要最后执行，所以这里需要执行的子目录要排除debug文件夹，这里使用awk排除了debug文件夹，读取剩下的文件夹
